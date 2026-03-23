@@ -1,4 +1,4 @@
-# ClearPoint — powered by mindssparc
+# ClearPoint — powered by MindsSparc
 
 Diagnostic-to-action engine for enterprise AI readiness consulting. ClearPoint helps consultants run structured assessments that produce traceable diagnoses, intervention roadmaps, and business cases -- not just maturity scores.
 

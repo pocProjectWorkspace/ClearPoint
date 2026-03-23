@@ -1,0 +1,9 @@
+{
+  "buildCommand": "pnpm --filter @mindssparc/shared-types build && pnpm --filter @mindssparc/web build",
+  "outputDirectory": "apps/web/dist",
+  "installCommand": "pnpm install",
+  "framework": null,
+  "rewrites": [
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
+  ]
+}

@@ -1,0 +1,17 @@
+[phases.setup]
+nixPkgs = ["nodejs_20", "openssl"]
+
+[phases.install]
+cmds = ["corepack enable", "pnpm install --frozen-lockfile"]
+
+[phases.build]
+cmds = [
+  "pnpm --filter @mindssparc/shared-types build",
+  "pnpm --filter @mindssparc/question-bank build",
+  "pnpm --filter @mindssparc/diagnostic-rules build",
+  "pnpm --filter @mindssparc/api build",
+  "cd apps/api && npx prisma generate"
+]
+
+[start]
+cmd = "cd apps/api && npx prisma migrate deploy && node dist/index.js"

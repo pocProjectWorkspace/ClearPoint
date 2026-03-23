@@ -17,7 +17,19 @@ const isProduction = process.env.NODE_ENV === 'production'
 const prisma = new PrismaClient()
 
 // CORS — restrictive in production, permissive in dev
-app.use(cors(isProduction ? { origin: process.env.VITE_APP_URL || 'http://localhost:5173' } : {}))
+const corsOptions = isProduction
+  ? {
+      origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+        const allowed = process.env.VITE_APP_URL || ''
+        if (!origin || origin === allowed || origin.endsWith('.vercel.app')) {
+          callback(null, true)
+        } else {
+          callback(null, false)
+        }
+      },
+    }
+  : {}
+app.use(cors(corsOptions))
 app.use(express.json())
 
 // Request logging (skip health checks to reduce noise)

@@ -1,0 +1,9 @@
+{
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "startCommand": "cd apps/api && npx prisma migrate deploy && node dist/index.js",
+    "restartPolicyType": "ON_FAILURE"
+  }
+}

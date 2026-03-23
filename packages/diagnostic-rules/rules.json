@@ -1,0 +1,189 @@
+[
+  {
+    "id": "siloed-systems",
+    "name": "Siloed Systems",
+    "description": "Data and processes exist within the organisation, but they live in disconnected systems that don't talk to each other. Teams have built workflows around their own tools, but cross-functional visibility is poor. This is one of the most common blockers to automation and analytics — the raw material exists but can't be assembled.",
+    "triggerConditions": [
+      {
+        "questionIds": ["CRV-03", "CRV-04", "CRV-07"],
+        "operator": "CONTRAST",
+        "contrastGroup": ["CRV-01", "CRV-02", "CRV-05"]
+      }
+    ],
+    "firesWhen": "Process-related questions (CRV-03, CRV-04, CRV-07) score above 3.5 average while data-access questions (CRV-01, CRV-02, CRV-05) score below 2.5 average — indicating processes exist but data isn't connected across them.",
+    "diagnosis": "Siloed Systems Problem",
+    "severity": "high",
+    "recommendedActions": ["integrate-core-systems", "build-unified-data-layer", "map-cross-functional-data-flows"],
+    "explanationTemplate": "Your team scored {Q:CRV-03} and {Q:CRV-04} on process maturity, suggesting workflows are in place. However, data accessibility scored only {Q:CRV-01} and {Q:CRV-02}, which tells us the information people need is trapped in disconnected systems. The gap between how well processes work and how poorly data flows across them is the hallmark of a siloed systems problem."
+  },
+  {
+    "id": "dark-process",
+    "name": "Dark Process",
+    "description": "Critical work is happening entirely outside formal systems. There is no defined process and no data being captured, which means the organisation has no visibility into how work actually gets done. This is a Tier 0 problem — before any technology intervention, the process itself needs to be made visible and documented.",
+    "triggerConditions": [
+      {
+        "questionIds": ["CRV-03", "CRV-04", "CRV-06", "CRV-08"],
+        "operator": "AVG_BELOW",
+        "threshold": 2.0
+      },
+      {
+        "questionIds": ["CRV-01", "CRV-02", "CRV-05"],
+        "operator": "AVG_BELOW",
+        "threshold": 2.0
+      }
+    ],
+    "firesWhen": "Both process-definition questions (CRV-03, CRV-04, CRV-06, CRV-08) AND data-capture questions (CRV-01, CRV-02, CRV-05) average below 2.0 — indicating work is happening entirely off-system with no formal process or data trail.",
+    "diagnosis": "Dark Process — Invisible Workflows",
+    "severity": "critical",
+    "recommendedActions": ["process-discovery-workshop", "define-minimum-viable-process", "implement-basic-data-capture"],
+    "explanationTemplate": "Process definition questions averaged below 2.0 (scores: {Q:CRV-03}, {Q:CRV-04}, {Q:CRV-06}, {Q:CRV-08}), and data capture scored similarly low ({Q:CRV-01}, {Q:CRV-02}, {Q:CRV-05}). This means critical work is happening with no formal process and no data trail. Before any technology intervention, the organisation needs to make these invisible workflows visible and establish basic documentation."
+  },
+  {
+    "id": "manual-bottleneck",
+    "name": "Manual Decision Bottleneck",
+    "description": "The organisation handles high volumes of work, but speed is constrained by human approval steps and manual decision-making. The process itself may be well-defined, but it requires a person to make a judgment call at key points, creating queues and delays. This is a classic automation candidate once decision rules can be codified.",
+    "triggerConditions": [
+      {
+        "questionIds": ["CRV-09", "CRV-10"],
+        "operator": "AND",
+        "threshold": 3.5
+      },
+      {
+        "questionIds": ["CRV-11", "CRV-12", "CRV-13"],
+        "operator": "AVG_BELOW",
+        "threshold": 2.5
+      }
+    ],
+    "firesWhen": "Volume and workload questions (CRV-09, CRV-10) score above 3.5 while speed, turnaround, and approval questions (CRV-11, CRV-12, CRV-13) average below 2.5 — indicating high throughput demand but human bottlenecks slowing execution.",
+    "diagnosis": "Manual Decision Bottleneck",
+    "severity": "high",
+    "recommendedActions": ["map-approval-chains", "codify-decision-rules", "implement-rules-based-automation"],
+    "explanationTemplate": "Volume-related questions scored {Q:CRV-09} and {Q:CRV-10}, confirming significant throughput demand. But speed and approval scores of {Q:CRV-11}, {Q:CRV-12}, and {Q:CRV-13} reveal that human decision points are creating bottlenecks. The constraint is not capacity — it is the manual approval steps that slow everything down."
+  },
+  {
+    "id": "data-trust-deficit",
+    "name": "Data Trust Deficit",
+    "description": "Scores on capability questions are moderate — systems exist and processes are in place — but respondents consistently flagged low confidence in their answers. This signals that people do not trust the data they are working with. The tools may be there, but the data quality, recency, or completeness is suspect, which undermines adoption and decision-making.",
+    "triggerConditions": [
+      {
+        "questionIds": ["CRV-01", "CRV-02", "CRV-05", "CRV-06", "CRV-09", "CRV-14"],
+        "operator": "AND",
+        "threshold": 2.5
+      }
+    ],
+    "firesWhen": "Multiple questions across the domain score between 2.5 and 3.5 (moderate capability) BUT more than 60% of answers in the domain are flagged with 'low' confidence — indicating the respondent does not trust the data even when systems nominally exist.",
+    "diagnosis": "Data Trust Deficit",
+    "severity": "medium",
+    "recommendedActions": ["data-quality-audit", "establish-data-ownership", "implement-data-freshness-monitoring"],
+    "explanationTemplate": "Capability scores were moderate — {Q:CRV-01}, {Q:CRV-05}, {Q:CRV-06}, {Q:CRV-14} — suggesting systems exist. However, the majority of answers were given with low confidence, which tells us people do not trust the data they are working with. This trust deficit suppresses adoption and leads teams to build shadow processes around the official systems."
+  },
+  {
+    "id": "insight-action-gap",
+    "name": "Insight-Action Gap",
+    "description": "The organisation has invested in reporting, dashboards, and analytics capabilities, but these insights are not translating into changed decisions or improved outcomes. Data is being produced but not consumed effectively. This often points to a missing feedback loop between analytics teams and operational decision-makers.",
+    "triggerConditions": [
+      {
+        "questionIds": ["CRV-14", "CRV-15", "CRV-16"],
+        "operator": "CONTRAST",
+        "contrastGroup": ["CRV-17", "CRV-18"]
+      }
+    ],
+    "firesWhen": "Reporting and analytics questions (CRV-14, CRV-15, CRV-16) score above 3.0 average while outcome and decision-impact questions (CRV-17, CRV-18) score below 2.5 average — indicating insight is being generated but not driving action.",
+    "diagnosis": "Insight-Action Gap",
+    "severity": "medium",
+    "recommendedActions": ["link-dashboards-to-decisions", "establish-insight-to-action-workflows", "define-decision-rights-per-metric"],
+    "explanationTemplate": "Reporting and analytics capabilities scored {Q:CRV-14}, {Q:CRV-15}, and {Q:CRV-16} — showing the organisation produces insight. But outcome and decision-impact scores of {Q:CRV-17} and {Q:CRV-18} reveal that these insights are not changing how decisions get made. The gap between knowing and doing is where value is being lost."
+  },
+  {
+    "id": "inconsistency-signal",
+    "name": "Process Inconsistency",
+    "description": "Questions within the same domain produced highly varied scores, suggesting that processes exist on paper but are applied inconsistently across teams, geographies, or time periods. This variance is a strong signal that process enforcement and standardisation are needed before any technology layer can reliably operate.",
+    "triggerConditions": [
+      {
+        "questionIds": ["CRV-01", "CRV-02", "CRV-03", "CRV-04", "CRV-05", "CRV-06", "CRV-07", "CRV-08"],
+        "operator": "OR"
+      }
+    ],
+    "firesWhen": "The standard deviation of scores across questions within the same domain exceeds 1.5 — indicating high variance that signals inconsistent process application rather than uniformly low or high maturity.",
+    "diagnosis": "Process Inconsistency — Defined but Not Enforced",
+    "severity": "medium",
+    "recommendedActions": ["standardise-process-execution", "implement-compliance-monitoring", "identify-best-practice-pockets"],
+    "explanationTemplate": "Scores within this domain ranged widely — from {Q:CRV-03} to {Q:CRV-07}, with other questions at {Q:CRV-01} and {Q:CRV-05}. This high variance tells us that some parts of the process are mature while others are not. The likely cause is that processes are defined but not consistently enforced, creating unpredictable quality and performance."
+  },
+  {
+    "id": "foundation-gap",
+    "name": "Foundation Gap",
+    "description": "Both process maturity and data infrastructure are critically low. The organisation lacks the stable operational foundation that automation, analytics, or AI require. Recommending advanced technology interventions here would be premature and likely to fail. The priority is building basic process discipline and data capture before anything else.",
+    "triggerConditions": [
+      {
+        "questionIds": ["CRV-03", "CRV-04", "CRV-06", "CRV-07", "CRV-08"],
+        "operator": "AVG_BELOW",
+        "threshold": 2.0
+      },
+      {
+        "questionIds": ["CRV-01", "CRV-02", "CRV-05", "CRV-14"],
+        "operator": "AVG_BELOW",
+        "threshold": 2.0
+      }
+    ],
+    "firesWhen": "Process questions (CRV-03, CRV-04, CRV-06, CRV-07, CRV-08) average below 2.0 AND data/information questions (CRV-01, CRV-02, CRV-05, CRV-14) also average below 2.0 — indicating no stable foundation exists for technology-led interventions.",
+    "diagnosis": "Foundation Gap — AI is Premature",
+    "severity": "critical",
+    "recommendedActions": ["establish-core-processes", "implement-basic-data-capture", "defer-advanced-technology-initiatives"],
+    "explanationTemplate": "Process maturity scores ({Q:CRV-03}, {Q:CRV-04}, {Q:CRV-06}, {Q:CRV-07}) and data infrastructure scores ({Q:CRV-01}, {Q:CRV-02}, {Q:CRV-05}, {Q:CRV-14}) are both critically low — averaging below 2.0. There is no stable foundation to build automation or AI on top of. The first priority must be establishing basic process discipline and data capture."
+  },
+  {
+    "id": "automation-ready",
+    "name": "Automation Ready",
+    "description": "Processes are well-defined, data is being captured reliably, and the work is high-frequency and repetitive. This is a textbook automation opportunity — the organisation has done the foundational work and is now ready to remove manual effort from predictable, rules-based tasks. Quick wins are available here.",
+    "triggerConditions": [
+      {
+        "questionIds": ["CRV-03", "CRV-04", "CRV-07"],
+        "operator": "AND",
+        "threshold": 3.5
+      },
+      {
+        "questionIds": ["CRV-01", "CRV-02", "CRV-05"],
+        "operator": "AND",
+        "threshold": 3.5
+      },
+      {
+        "questionIds": ["CRV-09", "CRV-10"],
+        "operator": "AND",
+        "threshold": 3.5
+      }
+    ],
+    "firesWhen": "Process questions (CRV-03, CRV-04, CRV-07) all score above 3.5, data questions (CRV-01, CRV-02, CRV-05) all score above 3.5, AND frequency/volume questions (CRV-09, CRV-10) score above 3.5 — indicating a mature, data-rich, high-volume process ripe for automation.",
+    "diagnosis": "Automation-Ready Process Identified",
+    "severity": "low",
+    "recommendedActions": ["identify-automation-candidates", "build-rpa-business-case", "pilot-first-automation"],
+    "explanationTemplate": "Process maturity is strong ({Q:CRV-03}, {Q:CRV-04}, {Q:CRV-07} all above 3.5), data infrastructure is solid ({Q:CRV-01}, {Q:CRV-02}, {Q:CRV-05}), and volume is high ({Q:CRV-09}, {Q:CRV-10}). This combination means the foundational work is done and the process is a clear candidate for automation — the question is not whether to automate, but where to start."
+  },
+  {
+    "id": "ai-candidate",
+    "name": "Genuine AI Candidate",
+    "description": "All lower-tier capabilities are solid — processes are defined, data is captured and accessible, and basic automation is already in place. What remains is a genuine judgment-at-scale problem: decisions that require nuance, pattern recognition across large datasets, or real-time adaptation that humans cannot sustain at volume. This is where AI adds real, defensible value.",
+    "triggerConditions": [
+      {
+        "questionIds": ["CRV-03", "CRV-04", "CRV-07"],
+        "operator": "AND",
+        "threshold": 3.5
+      },
+      {
+        "questionIds": ["CRV-01", "CRV-02", "CRV-05"],
+        "operator": "AND",
+        "threshold": 3.5
+      },
+      {
+        "questionIds": ["CRV-19", "CRV-20"],
+        "operator": "AVG_BELOW",
+        "threshold": 3.0
+      }
+    ],
+    "firesWhen": "Process questions (CRV-03, CRV-04, CRV-07) and data questions (CRV-01, CRV-02, CRV-05) all score above 3.5 — lower tiers are solid — AND judgment-variability questions (CRV-19, CRV-20) average below 3.0, indicating decisions that vary significantly between individuals and would benefit from AI-assisted consistency.",
+    "diagnosis": "Genuine AI Candidate — Judgment at Scale",
+    "severity": "low",
+    "recommendedActions": ["define-ai-use-case-scope", "assess-training-data-availability", "build-ai-pilot-with-human-oversight"],
+    "explanationTemplate": "The foundations are strong: process scores of {Q:CRV-03}, {Q:CRV-04}, {Q:CRV-07} and data scores of {Q:CRV-01}, {Q:CRV-02}, {Q:CRV-05} confirm that lower tiers are mature. However, judgment-variability scores of {Q:CRV-19} and {Q:CRV-20} reveal decisions that depend heavily on individual expertise and vary between people. This is precisely where AI adds real value — not replacing judgment, but scaling it consistently."
+  }
+]

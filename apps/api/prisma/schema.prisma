@@ -1,0 +1,106 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Consultant {
+  id           String       @id @default(uuid())
+  email        String       @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime     @default(now())
+  engagements  Engagement[]
+}
+
+model Engagement {
+  id                   String   @id @default(uuid())
+  name                 String   @default("")
+  clientName           String   @default("")
+  industry             String   @default("")
+  companySize          String   @default("")
+  revenueRange         String   @default("")
+  geography            String   @default("")
+  strategicPriorities  String   @default("")
+  consultantHypothesis String   @default("")
+  confidenceLevel      String   @default("medium")
+  domainsInScope       String   @default("[]")
+  interventionWeights  String   @default("{\"process\":25,\"automation\":25,\"analytics\":25,\"ai\":25}")
+  ambitionTargets      String   @default("{\"costReductionPct\":0,\"productivityGainPct\":0,\"revenueImpactPct\":0}")
+  status               String   @default("setup")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  consultantId String
+  consultant   Consultant @relation(fields: [consultantId], references: [id])
+
+  answers          Answer[]
+  session          Session?
+  diagnosticResult DiagnosticResult?
+  annotations      Annotation[]
+
+  @@index([consultantId])
+  @@index([status])
+}
+
+model Session {
+  id           String    @id @default(cuid())
+  engagementId String    @unique
+  engagement   Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  questionIds  String    // JSON array of ordered question IDs
+  currentIndex Int       @default(0)
+  status       String    @default("active") // active | paused | complete
+  startedAt    DateTime  @default(now())
+  pausedAt     DateTime?
+  completedAt  DateTime?
+  resumeToken  String?   @unique
+  updatedAt    DateTime  @updatedAt
+}
+
+model Answer {
+  id            String   @id @default(uuid())
+  engagementId  String
+  questionId    String
+  rawScore      Int
+  confidence    String   @default("medium")
+  notes         String?
+  weightedScore Float
+  timestamp     DateTime @default(now())
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+
+  @@unique([engagementId, questionId])
+  @@index([engagementId])
+}
+
+model DiagnosticResult {
+  id              String   @id @default(uuid())
+  engagementId    String   @unique
+  domainScores    String   // JSON
+  patterns        String   // JSON
+  rootCauses      String   // JSON
+  interventionMap String   // JSON
+  roadmap         String   // JSON
+  businessCase    String   // JSON
+  reasoningLog    String   // JSON
+  generatedAt     DateTime @default(now())
+
+  engagement Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+}
+
+model Annotation {
+  id           String   @id @default(cuid())
+  engagementId String
+  engagement   Engagement @relation(fields: [engagementId], references: [id], onDelete: Cascade)
+  type         String   // rootCause | roadmapItem | businessCase
+  itemId       String
+  text         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([engagementId])
+  @@unique([engagementId, type, itemId])
+}

@@ -32,7 +32,6 @@ RUN pnpm --filter @mindssparc/api build
 # --- Production image ---
 FROM node:20-slim
 
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 RUN npm install -g pnpm@9
 
 WORKDIR /app

@@ -1,0 +1,9 @@
+node_modules
+dist
+.git
+.turbo
+*.db
+*.db-journal
+apps/web
+docs
+.DS_Store

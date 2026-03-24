@@ -40,4 +40,5 @@ COPY --from=builder /app .
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "cd apps/api && npx prisma migrate deploy && node dist/index.js"]
+WORKDIR /app/apps/api
+CMD npx prisma migrate deploy && node dist/index.js

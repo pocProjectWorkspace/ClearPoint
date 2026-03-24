@@ -1,8 +1,13 @@
-import puppeteer from 'puppeteer'
-
 const APP_URL = process.env.VITE_APP_URL || 'http://localhost:5173'
 
 export async function generateReport(engagementId: string, token: string): Promise<Buffer> {
+  let puppeteer: any
+  try {
+    puppeteer = (await import('puppeteer')).default
+  } catch {
+    throw new Error('PDF export requires puppeteer. Install it locally with: pnpm --filter @mindssparc/api add puppeteer')
+  }
+
   const browser = await puppeteer.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu'],
@@ -15,7 +20,6 @@ export async function generateReport(engagementId: string, token: string): Promi
     const url = `${APP_URL}/report/${engagementId}?token=${encodeURIComponent(token)}`
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 25000 })
 
-    // Wait for the report to signal it's ready
     await page.waitForSelector('#report-ready', { timeout: 25000 })
 
     const pdf = await page.pdf({

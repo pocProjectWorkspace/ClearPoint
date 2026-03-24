@@ -84,7 +84,7 @@ engagementsRouter.get('/', async (req, res) => {
     orderBy: { updatedAt: 'desc' },
   })
 
-  const items = engagements.map((e) => deserializeEngagement(e as unknown as Record<string, unknown>))
+  const items = engagements.map((e: any) => deserializeEngagement(e as Record<string, unknown>))
 
   res.json({ data: { items, total: items.length } })
 })

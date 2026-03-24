@@ -1,11 +1,14 @@
 const APP_URL = process.env.VITE_APP_URL || 'http://localhost:5173'
 
 export async function generateReport(engagementId: string, token: string): Promise<Buffer> {
+  // Dynamic import — puppeteer is an optional dependency
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
   let puppeteer: any
   try {
-    puppeteer = (await import('puppeteer')).default
+    puppeteer = await (Function('return import("puppeteer")')() as Promise<any>)
+    puppeteer = puppeteer.default || puppeteer
   } catch {
-    throw new Error('PDF export requires puppeteer. Install it locally with: pnpm --filter @mindssparc/api add puppeteer')
+    throw new Error('PDF export requires puppeteer. Install locally: pnpm --filter @mindssparc/api add puppeteer')
   }
 
   const browser = await puppeteer.launch({
@@ -19,7 +22,6 @@ export async function generateReport(engagementId: string, token: string): Promi
 
     const url = `${APP_URL}/report/${engagementId}?token=${encodeURIComponent(token)}`
     await page.goto(url, { waitUntil: 'networkidle2', timeout: 25000 })
-
     await page.waitForSelector('#report-ready', { timeout: 25000 })
 
     const pdf = await page.pdf({

@@ -248,7 +248,7 @@ sessionRouter.post('/:id/session/expand-domain', async (req, res) => {
 
   const evaluation = evaluateDomainForExpansion(
     domain,
-    engagement.answers.map(a => ({ questionId: a.questionId, rawScore: a.rawScore })),
+    engagement.answers.map((a: any) => ({ questionId: a.questionId, rawScore: a.rawScore })),
     currentQuestionIds
   )
 
@@ -352,7 +352,7 @@ sessionRouter.get('/:id/session/resume', async (req, res) => {
   }
 
   const questionIds = JSON.parse(engagement.session.questionIds) as string[]
-  const answeredIds = new Set(engagement.answers.map((a) => a.questionId))
+  const answeredIds = new Set(engagement.answers.map((a: any) => a.questionId))
 
   let nextIndex = 0
   for (let i = 0; i < questionIds.length; i++) {
@@ -371,10 +371,10 @@ sessionRouter.get('/:id/session/resume', async (req, res) => {
       const q = getQuestionById(qid)
       return q?.domain === domain
     })
-    const domainAnswers = engagement.answers.filter((a) =>
+    const domainAnswers = engagement.answers.filter((a: any) =>
       domainQuestionIds.includes(a.questionId)
     )
-    const totalWeighted = domainAnswers.reduce((s, a) => s + a.weightedScore, 0)
+    const totalWeighted = domainAnswers.reduce((s: number, a: any) => s + a.weightedScore, 0)
     const maxPossible = domainQuestionIds.reduce((s, qid) => {
       const q = getQuestionById(qid)
       return s + (q ? 5 * q.baseWeight : 5)

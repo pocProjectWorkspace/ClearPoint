@@ -16,20 +16,15 @@ const PORT = process.env.PORT || 3001
 const isProduction = process.env.NODE_ENV === 'production'
 const prisma = new PrismaClient()
 
-// CORS — restrictive in production, permissive in dev
-const corsOptions = isProduction
-  ? {
-      origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-        const allowed = process.env.VITE_APP_URL || ''
-        if (!origin || origin === allowed || origin.endsWith('.vercel.app')) {
-          callback(null, true)
-        } else {
-          callback(null, false)
-        }
-      },
-    }
-  : {}
-app.use(cors(corsOptions))
+// CORS — allow Vercel frontend and local dev
+app.use(cors({
+  origin: [
+    'https://clear-point-web.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ],
+  credentials: true,
+}))
 app.use(express.json())
 
 // Request logging (skip health checks to reduce noise)

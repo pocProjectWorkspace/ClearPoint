@@ -76,7 +76,8 @@ app.use('/api/export', exportRouter)
 // Enhanced health check
 app.get('/api/health', async (_req, res) => {
   let dbStatus = 'connected'
-  try { await prisma.consultant.count() } catch { dbStatus = 'error' }
+  let dbError: string | undefined
+  try { await prisma.consultant.count() } catch (err: any) { dbStatus = 'error'; dbError = err?.message || String(err) }
 
   const questions = loadQuestions()
   const domains = new Set(questions.map(q => q.domain))
@@ -87,8 +88,12 @@ app.get('/api/health', async (_req, res) => {
     name: 'ClearPoint',
     version: '1.0.0',
     database: dbStatus,
+    ...(dbError && { dbError }),
+    dbUrlSet: !!process.env.DATABASE_URL,
+    directUrlSet: !!process.env.DIRECT_URL,
     questionBank: { total: questions.length, domains: domains.size },
     environment: isProduction ? 'production' : 'development',
+    nodeEnv: process.env.NODE_ENV || 'not set',
   })
 })
 

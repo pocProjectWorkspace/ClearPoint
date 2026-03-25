@@ -17,7 +17,21 @@ const isProduction = process.env.NODE_ENV === 'production'
 const prisma = new PrismaClient()
 
 // CORS — open for JWT-authenticated API
-app.use(cors())
+app.use(cors({
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}))
+
+// Ensure preflight requests are handled explicitly
+app.options('*', cors({
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}))
+
 app.use(express.json())
 
 // Request logging (skip health checks to reduce noise)

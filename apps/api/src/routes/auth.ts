@@ -48,25 +48,30 @@ authRouter.post('/login', async (req, res) => {
   }
 
   // Ensure consultant exists in DB (upsert on first login)
-  let consultant = await prisma.consultant.findUnique({
-    where: { email: matchedUser.email },
-  })
-  if (!consultant) {
-    consultant = await prisma.consultant.create({
+  try {
+    let consultant = await prisma.consultant.findUnique({
+      where: { email: matchedUser.email },
+    })
+    if (!consultant) {
+      consultant = await prisma.consultant.create({
+        data: {
+          email: matchedUser.email,
+          name: matchedUser.name,
+          passwordHash: 'builtin-auth',
+        },
+      })
+    }
+
+    const token = signToken({ consultantId: consultant.id, email: consultant.email })
+
+    res.json({
       data: {
-        email: matchedUser.email,
-        name: matchedUser.name,
-        passwordHash: 'builtin-auth',
+        token,
+        consultant: { id: consultant.id, name: consultant.name, email: consultant.email },
       },
     })
+  } catch (err) {
+    console.error('Login DB error:', err)
+    res.status(503).json({ data: null, error: 'Database unavailable — please try again shortly' })
   }
-
-  const token = signToken({ consultantId: consultant.id, email: consultant.email })
-
-  res.json({
-    data: {
-      token,
-      consultant: { id: consultant.id, name: consultant.name, email: consultant.email },
-    },
-  })
 })

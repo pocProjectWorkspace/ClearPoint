@@ -1,5 +1,10 @@
 import type { Question, Domain, InterventionType } from '@mindssparc/shared-types'
-import questionsData from '../questions.json'
+import { readFileSync } from 'fs'
+import { join } from 'path'
+
+const questionsData = JSON.parse(
+  readFileSync(join(__dirname, '..', 'questions.json'), 'utf-8')
+)
 
 const VALID_DOMAINS: Domain[] = ['CRV', 'MKT', 'SVC', 'OPS', 'PPL', 'FIN', 'TEC', 'PRD']
 const VALID_SIGNALS: InterventionType[] = ['PROCESS', 'DIGITIZE', 'INTEGRATE', 'AUTOMATE', 'ANALYTICS', 'AI']

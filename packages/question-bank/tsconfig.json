@@ -3,7 +3,9 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "resolveJsonModule": true
+    "module": "CommonJS",
+    "moduleResolution": "node",
+    "types": ["node"]
   },
   "include": ["src"]
 }

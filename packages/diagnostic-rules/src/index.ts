@@ -1,5 +1,10 @@
 import type { DiagnosticRule } from '@mindssparc/shared-types'
-import rulesData from '../rules.json'
+import { readFileSync } from 'fs'
+import { join } from 'path'
+
+const rulesData = JSON.parse(
+  readFileSync(join(__dirname, '..', 'rules.json'), 'utf-8')
+)
 
 let cachedRules: DiagnosticRule[] | null = null
 

@@ -5,6 +5,29 @@ import { signToken } from '../middleware/auth'
 const prisma = new PrismaClient()
 export const authRouter = Router()
 
+// Built-in user accounts (checked before DB lookup)
+const BUILTIN_USERS: Array<{ email: string; password: string; name: string }> = [
+  {
+    email: 'lakshmi.nair@mindssparc.com',
+    password: 'Password@123',
+    name: 'Lakshmi Nair',
+  },
+  {
+    email: 'rajeshp@mindssparc.com',
+    password: 'Password@123',
+    name: 'Rajesh P',
+  },
+]
+
+// Also support the env-var user if configured
+if (process.env.CONSULTANT_EMAIL && process.env.CONSULTANT_PASSWORD) {
+  BUILTIN_USERS.push({
+    email: process.env.CONSULTANT_EMAIL,
+    password: process.env.CONSULTANT_PASSWORD,
+    name: process.env.CONSULTANT_NAME || 'Consultant',
+  })
+}
+
 // POST /api/auth/login
 authRouter.post('/login', async (req, res) => {
   const { email, password } = req.body
@@ -14,23 +37,26 @@ authRouter.post('/login', async (req, res) => {
     return
   }
 
-  const expectedEmail = process.env.CONSULTANT_EMAIL
-  const expectedPassword = process.env.CONSULTANT_PASSWORD
-  const consultantName = process.env.CONSULTANT_NAME || 'Consultant'
+  // Check against built-in users
+  const matchedUser = BUILTIN_USERS.find(
+    (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
+  )
 
-  if (email !== expectedEmail || password !== expectedPassword) {
+  if (!matchedUser) {
     res.status(401).json({ data: null, error: 'Invalid credentials' })
     return
   }
 
   // Ensure consultant exists in DB (upsert on first login)
-  let consultant = await prisma.consultant.findUnique({ where: { email } })
+  let consultant = await prisma.consultant.findUnique({
+    where: { email: matchedUser.email },
+  })
   if (!consultant) {
     consultant = await prisma.consultant.create({
       data: {
-        email,
-        name: consultantName,
-        passwordHash: 'env-auth', // placeholder — auth via env vars
+        email: matchedUser.email,
+        name: matchedUser.name,
+        passwordHash: 'builtin-auth',
       },
     })
   }

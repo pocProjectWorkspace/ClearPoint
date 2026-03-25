@@ -15,15 +15,16 @@ RUN pnpm install --no-frozen-lockfile
 COPY packages/ packages/
 COPY apps/api/ apps/api/
 
+# Generate Prisma client (no DB connection needed)
 RUN cd apps/api && npx prisma generate
+
+# Build all packages
 RUN pnpm --filter @mindssparc/shared-types build
 RUN pnpm --filter @mindssparc/question-bank build
 RUN pnpm --filter @mindssparc/diagnostic-rules build
 RUN pnpm --filter @mindssparc/api build
 
 FROM node:20-slim
-
-RUN npm install -g pnpm@9
 
 WORKDIR /app/apps/api
 
@@ -33,4 +34,5 @@ RUN chmod +x start.sh
 
 EXPOSE 3001
 
+# migrate deploy runs at startup (needs DATABASE_URL from env)
 ENTRYPOINT ["/bin/sh", "start.sh"]

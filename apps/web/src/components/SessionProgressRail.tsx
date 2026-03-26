@@ -101,7 +101,7 @@ export default function SessionProgressRail({
       : 0
 
   return (
-    <aside className="flex h-screen w-[260px] flex-shrink-0 flex-col border-r border-navy-100 bg-white">
+    <aside className="hidden md:flex h-screen w-[260px] flex-shrink-0 flex-col border-r border-navy-100 bg-white">
       {/* ── Top section ─────────────────────────────────────────── */}
       <div className="border-b border-navy-100 px-5 py-5">
         {/* Timer */}

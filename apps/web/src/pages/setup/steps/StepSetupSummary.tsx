@@ -192,7 +192,7 @@ export default function StepSetupSummary({
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
         {/* LEFT COLUMN */}
         <div className="space-y-6">
           <section>
@@ -328,7 +328,7 @@ export default function StepSetupSummary({
                 <label className="font-body text-body-sm font-medium text-navy-700">
                   Question delivery mode
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => updateConfig({ questionMode: 'adaptive' })}

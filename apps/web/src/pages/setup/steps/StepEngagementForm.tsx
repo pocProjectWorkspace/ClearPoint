@@ -167,7 +167,7 @@ export default function StepEngagementForm({ draft, onNext }: StepProps) {
         </div>
 
         {/* Company Size + Revenue Range — side by side */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="font-body text-body-sm font-medium text-navy-700 block mb-1.5">
               Company Size

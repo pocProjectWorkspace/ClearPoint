@@ -84,7 +84,18 @@ export default function SetupWizard() {
       <ProgressRail steps={steps} onStepClick={goToStep} />
 
       <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-[680px] px-8 pt-10 pb-20">
+        {/* Mobile step indicator */}
+        <div className="md:hidden px-4 pt-4 pb-2">
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-body text-body-xs text-navy-500">Step {currentStep} of 6</span>
+            <span className="font-body text-body-xs text-navy-400">{STEP_LABELS[currentStep - 1]}</span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-navy-100">
+            <div className="h-1.5 rounded-full bg-navy-700 transition-all" style={{ width: `${(currentStep / 6) * 100}%` }} />
+          </div>
+        </div>
+
+        <div className="mx-auto max-w-[680px] px-4 md:px-8 pt-6 md:pt-10 pb-20">
           {currentStep === 1 && (
             <StepEngagementForm
               draft={draft}

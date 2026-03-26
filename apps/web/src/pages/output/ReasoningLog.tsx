@@ -16,7 +16,7 @@ const TABS = [
 
 function TabBar({ engagementId, activeTab }: { engagementId: string; activeTab: string }) {
   return (
-    <nav className="mb-8 flex gap-6 border-b border-navy-100">
+    <nav className="mb-8 flex gap-4 sm:gap-6 border-b border-navy-100 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
       {TABS.map(tab => (
         <Link
           key={tab.path}
@@ -188,7 +188,7 @@ function ReasoningCard({ entry, groupColor }: { entry: ReasoningEntry; groupColo
 function LoadingSkeleton() {
   return (
     <div className="min-h-screen bg-warm-50">
-      <div className="mx-auto max-w-content px-6 py-12">
+      <div className="mx-auto max-w-content px-4 sm:px-6 py-8 sm:py-12">
         <div className="h-10 w-48 bg-navy-100 rounded animate-pulse mb-8" />
         <div className="flex gap-6 border-b border-navy-100 mb-8">
           {[1, 2, 3, 4, 5].map(i => (
@@ -227,7 +227,7 @@ function ErrorState({ message, engagementId }: { message: string; engagementId: 
 
   return (
     <div className="min-h-screen bg-warm-50">
-      <div className="mx-auto max-w-content px-6 py-12">
+      <div className="mx-auto max-w-content px-4 sm:px-6 py-8 sm:py-12">
         <h1 className="font-display text-display-lg text-navy-900">Reasoning log</h1>
         <div className="mt-8 rounded-lg border border-navy-100 bg-white p-8 text-center">
           <p className="font-body text-body-md text-navy-600 mb-4">
@@ -271,7 +271,7 @@ export default function ReasoningLog() {
   if (mode === 'client') {
     return (
       <div className="min-h-screen bg-warm-50">
-        <div className="mx-auto max-w-content px-6 py-12">
+        <div className="mx-auto max-w-content px-4 sm:px-6 py-8 sm:py-12">
           <h1 className="font-display text-display-lg text-navy-900 mb-2">Reasoning log</h1>
           <p className="font-body text-body-sm text-navy-400 mb-8">
             Full diagnostic reasoning chain
@@ -300,7 +300,7 @@ export default function ReasoningLog() {
 
   return (
     <div className="min-h-screen bg-warm-50">
-      <div className="mx-auto max-w-content px-6 py-12">
+      <div className="mx-auto max-w-content px-4 sm:px-6 py-8 sm:py-12">
         <h1 className="font-display text-display-lg text-navy-900 mb-2">Reasoning log</h1>
         <p className="font-body text-body-sm text-navy-400 mb-8">
           Complete evidence chain — every score, pattern, and recommendation traced back to assessment data

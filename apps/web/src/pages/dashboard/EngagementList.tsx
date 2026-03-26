@@ -134,7 +134,7 @@ export default function EngagementList() {
                   key={id}
                   className={`rounded-lg border border-navy-100 bg-white px-6 py-5 transition-shadow hover:shadow-sm ${isDeleting ? 'opacity-50' : ''}`}
                 >
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-3">
                         <h3 className="font-display text-body-lg font-medium text-navy-900">
@@ -156,7 +156,7 @@ export default function EngagementList() {
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 shrink-0 mt-3 md:mt-0">
                       {/* Edit button — available before completion */}
                       {status !== 'complete' && (
                         <button

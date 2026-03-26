@@ -317,7 +317,7 @@ export default function QuestionCard({
       )}
 
       {/* ── Footer ─────────────────────────────────────────────── */}
-      <div className="mt-8 flex items-center justify-between">
+      <div className="mt-8 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-0">
         {/* Left: Previous */}
         <div>
           {!isFirst && (

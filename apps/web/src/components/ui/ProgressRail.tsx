@@ -11,7 +11,7 @@ type ProgressRailProps = {
 
 export default function ProgressRail({ steps, onStepClick }: ProgressRailProps) {
   return (
-    <nav className="w-[220px] shrink-0 border-r border-navy-100 bg-white py-8 pr-4 pl-6">
+    <nav className="hidden md:flex md:w-[220px] shrink-0 border-r border-navy-100 bg-white py-8 pr-4 pl-6 flex-col">
       <p className="mb-6 font-body text-body-xs font-medium uppercase tracking-widest text-navy-400">
         Setup
       </p>

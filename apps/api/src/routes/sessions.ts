@@ -181,10 +181,11 @@ sessionRouter.post('/:id/session/start', async (req, res) => {
   }
 
   const domainsInScope = JSON.parse(engagement.domainsInScope) as Domain[]
+  const questionMode = req.body?.questionMode || 'adaptive'
   const adaptive = generateAdaptiveQuestionOrder(domainsInScope)
 
-  // Start with signal questions only
-  const initialQuestionIds = adaptive.signalIds
+  // Start with signal questions only, or all questions if mode is 'all'
+  const initialQuestionIds = questionMode === 'all' ? adaptive.allIds : adaptive.signalIds
 
   if (initialQuestionIds.length === 0) {
     res.status(400).json({ data: null, error: 'No questions found for selected domains' })

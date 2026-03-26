@@ -157,3 +157,30 @@ engagementsRouter.put('/:id', async (req, res) => {
     res.status(500).json({ data: null, error: 'Failed to update engagement' })
   }
 })
+
+// DELETE /api/engagements/:id
+engagementsRouter.delete('/:id', async (req, res) => {
+  const consultantId = req.auth!.consultantId
+
+  const existing = await prisma.engagement.findFirst({
+    where: { id: req.params.id, consultantId },
+  })
+  if (!existing) {
+    res.status(404).json({ data: null, error: 'Engagement not found' })
+    return
+  }
+
+  try {
+    // Delete in dependency order (cascades handle most, but be explicit)
+    await prisma.diagnosticResult.deleteMany({ where: { engagementId: req.params.id } })
+    await prisma.annotation.deleteMany({ where: { engagementId: req.params.id } })
+    await prisma.answer.deleteMany({ where: { engagementId: req.params.id } })
+    await prisma.session.deleteMany({ where: { engagementId: req.params.id } })
+    await prisma.engagement.delete({ where: { id: req.params.id } })
+
+    res.json({ data: null })
+  } catch (e) {
+    console.error('Engagement delete error:', (e as Error).message)
+    res.status(500).json({ data: null, error: 'Failed to delete engagement' })
+  }
+})

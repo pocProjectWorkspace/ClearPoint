@@ -72,8 +72,11 @@ export const api = {
     }),
 
   // Session
-  startSession: (engagementId: string) =>
-    request<{ data: any }>(`/api/engagements/${engagementId}/session/start`, { method: 'POST' }),
+  startSession: (engagementId: string, questionMode: 'adaptive' | 'all' = 'adaptive') =>
+    request<{ data: any }>(`/api/engagements/${engagementId}/session/start`, {
+      method: 'POST',
+      body: JSON.stringify({ questionMode }),
+    }),
 
   resumeSession: (engagementId: string) =>
     request<{ data: any }>(`/api/engagements/${engagementId}/session/resume`),
@@ -126,7 +129,7 @@ export const api = {
   // PDF Export
   exportPdf: async (engagementId: string): Promise<Blob> => {
     const token = localStorage.getItem('mindssparc_token')
-    const res = await fetch(`/api/export/${engagementId}/pdf`, {
+    const res = await fetch(`${API_BASE}/api/export/${engagementId}/pdf`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -136,4 +139,8 @@ export const api = {
     if (!res.ok) throw new Error('Export failed')
     return res.blob()
   },
+
+  // Delete engagement
+  deleteEngagement: (id: string) =>
+    request<{ data: null }>(`/api/engagements/${id}`, { method: 'DELETE' }),
 }

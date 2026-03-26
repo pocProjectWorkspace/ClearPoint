@@ -143,7 +143,10 @@ export default function SessionDashboard() {
           prefillCurrentAnswer()
         } else {
           // Start or resume from API
-          const res = await api.startSession(engagementId)
+          // Check for config from setup wizard
+          const configStr = sessionStorage.getItem(`config-${engagementId}`)
+          const questionMode = configStr ? JSON.parse(configStr).questionMode || 'adaptive' : 'adaptive'
+          const res = await api.startSession(engagementId, questionMode)
           const sessionData = res.data
 
           sessionStore.setSession({

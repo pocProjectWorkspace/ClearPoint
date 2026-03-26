@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import ProgressRail from '../../components/ui/ProgressRail'
 import { useEngagementStore } from '../../store/engagementStore'
@@ -25,6 +25,7 @@ export default function SetupWizard() {
   const { draft, setDraft, setDraftId, loadDraft } = useEngagementStore()
 
   const currentStep = Math.min(Math.max(Number(params.get('step')) || 1, 1), 6)
+  const configRef = useRef<any>(null)
 
   // Load existing engagement if draft has an ID
   useEffect(() => {
@@ -142,8 +143,15 @@ export default function SetupWizard() {
             <StepSetupSummary
               draft={draft}
               onEdit={goToStep}
-              onBeginAssessment={() => navigate(`/session/${draft.id}`)}
+              onBeginAssessment={() => {
+                // Store config in sessionStorage for the session to pick up
+                if (configRef.current) {
+                  sessionStorage.setItem(`config-${draft.id}`, JSON.stringify(configRef.current))
+                }
+                navigate(`/session/${draft.id}`)
+              }}
               onSaveAndExit={() => navigate('/')}
+              onUpdateConfig={(config) => { configRef.current = config }}
             />
           )}
         </div>

@@ -34,9 +34,11 @@ const STATUS_LABELS: Record<string, string> = {
 export default function EngagementList() {
   const navigate = useNavigate()
   const { consultant, logout } = useAuth()
-  const { resetDraft } = useEngagementStore()
+  const { resetDraft, loadDraft } = useEngagementStore()
   const [engagements, setEngagements] = useState<Record<string, unknown>[]>([])
   const [loading, setLoading] = useState(true)
+  const [deleting, setDeleting] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   useEffect(() => {
     api.listEngagements()
@@ -50,10 +52,17 @@ export default function EngagementList() {
     navigate('/setup/new?step=1')
   }
 
+  function handleEdit(engagement: Record<string, unknown>) {
+    // Load the engagement data into the store and navigate to setup
+    loadDraft(engagement as any)
+    navigate('/setup/new?step=1')
+  }
+
   function handleAction(engagement: Record<string, unknown>) {
     const status = engagement.status as string
     const id = engagement.id as string
     if (status === 'setup') {
+      loadDraft(engagement as any)
       navigate(`/setup/new?step=1`)
     } else if (status === 'in_progress') {
       navigate(`/session/${id}`)
@@ -62,9 +71,22 @@ export default function EngagementList() {
     }
   }
 
+  async function handleDelete(id: string) {
+    setDeleting(id)
+    try {
+      await api.deleteEngagement(id)
+      setEngagements(prev => prev.filter(e => e.id !== id))
+    } catch {
+      // silently fail
+    } finally {
+      setDeleting(null)
+      setConfirmDelete(null)
+    }
+  }
+
   const actionLabel = (status: string) => {
     if (status === 'setup') return 'Continue Setup'
-    if (status === 'in_progress') return 'Start Session'
+    if (status === 'in_progress') return 'Resume Session'
     return 'View Results'
   }
 
@@ -98,14 +120,12 @@ export default function EngagementList() {
         </div>
 
         {loading ? (
-          /* Skeleton loading */
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-20 animate-pulse rounded-lg border border-navy-100 bg-white" />
             ))}
           </div>
         ) : engagements.length === 0 ? (
-          /* Empty state */
           <div className="rounded-lg border border-navy-100 bg-white px-8 py-16 text-center">
             <h3 className="font-display text-display-sm text-navy-800">No engagements yet</h3>
             <p className="mx-auto mt-3 max-w-md font-body text-body-md text-navy-500">
@@ -120,42 +140,87 @@ export default function EngagementList() {
             </button>
           </div>
         ) : (
-          /* Engagement list */
           <div className="space-y-3">
             {engagements.map((eng) => {
               const status = eng.status as string
+              const id = eng.id as string
               const domains = (eng.domainsInScope as string[]) || []
+              const isDeleting = deleting === id
+
               return (
                 <div
-                  key={eng.id as string}
-                  className="flex items-center justify-between rounded-lg border border-navy-100 bg-white px-6 py-5 transition-shadow hover:shadow-sm"
+                  key={id}
+                  className={`rounded-lg border border-navy-100 bg-white px-6 py-5 transition-shadow hover:shadow-sm ${isDeleting ? 'opacity-50' : ''}`}
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="font-display text-body-lg font-medium text-navy-900">
-                        {(eng.clientName as string) || 'Untitled'}
-                      </h3>
-                      <span
-                        className={`rounded-full border px-2.5 py-0.5 font-body text-body-xs font-medium ${STATUS_STYLES[status] || STATUS_STYLES.setup}`}
-                      >
-                        {STATUS_LABELS[status] || status}
-                      </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        <h3 className="font-display text-body-lg font-medium text-navy-900">
+                          {(eng.clientName as string) || 'Untitled'}
+                        </h3>
+                        <span
+                          className={`rounded-full border px-2.5 py-0.5 font-body text-body-xs font-medium ${STATUS_STYLES[status] || STATUS_STYLES.setup}`}
+                        >
+                          {STATUS_LABELS[status] || status}
+                        </span>
+                      </div>
+                      <div className="mt-1.5 flex items-center gap-4 font-body text-body-sm text-navy-400">
+                        {eng.name ? <span>{String(eng.name)}</span> : null}
+                        {eng.industry ? (
+                          <span>{INDUSTRY_LABELS[String(eng.industry)] || String(eng.industry)}</span>
+                        ) : null}
+                        {domains.length > 0 ? <span>{domains.length} domains</span> : null}
+                        {eng.updatedAt ? <span>{formatDate(String(eng.updatedAt))}</span> : null}
+                      </div>
                     </div>
-                    <div className="mt-1.5 flex items-center gap-4 font-body text-body-sm text-navy-400">
-                      {eng.name ? <span>{String(eng.name)}</span> : null}
-                      {eng.industry ? (
-                        <span>{INDUSTRY_LABELS[String(eng.industry)] || String(eng.industry)}</span>
-                      ) : null}
-                      {domains.length > 0 ? <span>{domains.length} domains</span> : null}
-                      {eng.updatedAt ? <span>{formatDate(String(eng.updatedAt))}</span> : null}
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      {/* Edit button — available before completion */}
+                      {status !== 'complete' && (
+                        <button
+                          onClick={() => handleEdit(eng)}
+                          className="rounded-lg border border-navy-200 bg-white px-4 py-2 font-body text-body-sm text-navy-500 transition-colors hover:bg-navy-50 hover:text-navy-700"
+                        >
+                          Edit
+                        </button>
+                      )}
+
+                      {/* Primary action */}
+                      <button
+                        onClick={() => handleAction(eng)}
+                        className="rounded-lg border border-navy-200 bg-white px-5 py-2 font-body text-body-sm font-medium text-navy-700 transition-colors hover:bg-navy-50"
+                      >
+                        {actionLabel(status)}
+                      </button>
+
+                      {/* Delete */}
+                      {confirmDelete === id ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleDelete(id)}
+                            disabled={isDeleting}
+                            className="rounded-lg bg-red-600 px-3 py-2 font-body text-body-xs font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                          >
+                            {isDeleting ? '...' : 'Confirm'}
+                          </button>
+                          <button
+                            onClick={() => setConfirmDelete(null)}
+                            className="rounded-lg border border-navy-200 px-3 py-2 font-body text-body-xs text-navy-500 hover:bg-navy-50"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDelete(id)}
+                          className="rounded-lg border border-navy-200 bg-white px-3 py-2 font-body text-body-xs text-navy-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                          title="Delete engagement"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <button
-                    onClick={() => handleAction(eng)}
-                    className="shrink-0 rounded-lg border border-navy-200 bg-white px-5 py-2 font-body text-body-sm font-medium text-navy-700 transition-colors hover:bg-navy-50"
-                  >
-                    {actionLabel(status)}
-                  </button>
                 </div>
               )
             })}

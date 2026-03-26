@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { EngagementDraft } from '../../../store/engagementStore'
 
 type StepProps = {
@@ -5,6 +6,23 @@ type StepProps = {
   onEdit: (step: number) => void
   onBeginAssessment: () => void
   onSaveAndExit: () => void
+  onUpdateConfig?: (config: EngagementConfig) => void
+}
+
+export type EngagementConfig = {
+  questionMode: 'adaptive' | 'all'
+  contrastThreshold: number
+  stddevThreshold: number
+  confidenceThresholdPct: number
+  minAnsweredPct: number
+}
+
+const DEFAULT_CONFIG: EngagementConfig = {
+  questionMode: 'adaptive',
+  contrastThreshold: 0.8,
+  stddevThreshold: 1.0,
+  confidenceThresholdPct: 40,
+  minAnsweredPct: 50,
 }
 
 const DOMAIN_NAMES: Record<string, string> = {
@@ -74,18 +92,20 @@ function SectionHeader({
   onEdit,
 }: {
   title: string
-  onEdit: () => void
+  onEdit?: () => void
 }) {
   return (
     <div className="flex justify-between items-center border-b border-navy-100 pb-2 mb-4">
       <h3 className="font-display text-body-lg text-navy-900">{title}</h3>
-      <button
-        type="button"
-        onClick={onEdit}
-        className="font-body text-body-xs text-accent-600 hover:text-accent-700 cursor-pointer"
-      >
-        Edit
-      </button>
+      {onEdit && (
+        <button
+          type="button"
+          onClick={onEdit}
+          className="font-body text-body-xs text-accent-600 hover:text-accent-700 cursor-pointer"
+        >
+          Edit
+        </button>
+      )}
     </div>
   )
 }
@@ -101,16 +121,67 @@ function Field({ label, value }: { label: string; value: string | undefined }) {
   )
 }
 
+function ConfigSlider({
+  label,
+  value,
+  min,
+  max,
+  step,
+  onChange,
+  description,
+  format,
+}: {
+  label: string
+  value: number
+  min: number
+  max: number
+  step: number
+  onChange: (v: number) => void
+  description: string
+  format?: (v: number) => string
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between items-baseline">
+        <label className="font-body text-body-sm font-medium text-navy-700">{label}</label>
+        <span className="font-mono text-body-sm text-navy-800">
+          {format ? format(value) : value}
+        </span>
+      </div>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={e => onChange(Number(e.target.value))}
+        className="w-full h-1.5 bg-navy-100 rounded-full appearance-none cursor-pointer accent-navy-800"
+      />
+      <p className="font-body text-body-xs text-navy-400">{description}</p>
+    </div>
+  )
+}
+
 export default function StepSetupSummary({
   draft,
   onEdit,
   onBeginAssessment,
   onSaveAndExit,
+  onUpdateConfig,
 }: StepProps) {
   const weights = draft.interventionWeights ?? { process: 25, automation: 25, analytics: 25, ai: 25 }
   const targets = draft.ambitionTargets ?? { costReductionPct: 0, productivityGainPct: 0, revenueImpactPct: 0 }
   const confidence = draft.confidenceLevel ?? 'medium'
   const confidenceInfo = CONFIDENCE_DISPLAY[confidence]
+
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [config, setConfig] = useState<EngagementConfig>(DEFAULT_CONFIG)
+
+  function updateConfig(partial: Partial<EngagementConfig>) {
+    const updated = { ...config, ...partial }
+    setConfig(updated)
+    onUpdateConfig?.(updated)
+  }
 
   return (
     <div className="space-y-6">
@@ -230,6 +301,150 @@ export default function StepSetupSummary({
             </div>
           </section>
         </div>
+      </div>
+
+      {/* Advanced Configuration */}
+      <div className="border-t border-navy-100 pt-6">
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="flex items-center gap-2 font-body text-body-sm text-navy-500 hover:text-navy-700 transition-colors"
+        >
+          <span className="font-mono text-body-xs">{showAdvanced ? '−' : '+'}</span>
+          {showAdvanced ? 'Hide advanced configuration' : 'Show advanced configuration'}
+        </button>
+
+        {showAdvanced && (
+          <div className="mt-6 rounded-lg border border-navy-100 bg-white p-6 space-y-8">
+            <div>
+              <h4 className="font-display text-body-md text-navy-900 mb-1">Assessment configuration</h4>
+              <p className="font-body text-body-xs text-navy-400 mb-6">
+                These settings control how the assessment session and diagnostic engine behave.
+                Default values work well for most engagements. Adjust only if you have specific requirements.
+              </p>
+
+              {/* Question delivery mode */}
+              <div className="space-y-3 mb-8">
+                <label className="font-body text-body-sm font-medium text-navy-700">
+                  Question delivery mode
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => updateConfig({ questionMode: 'adaptive' })}
+                    className={`rounded-lg border p-4 text-left transition-colors ${
+                      config.questionMode === 'adaptive'
+                        ? 'border-navy-800 bg-navy-50'
+                        : 'border-navy-200 hover:border-navy-300'
+                    }`}
+                  >
+                    <span className="font-body text-body-sm font-medium text-navy-800 block">
+                      Adaptive
+                    </span>
+                    <span className="font-body text-body-xs text-navy-500 mt-1 block">
+                      Starts with 16 priority questions per domain. Expands to detail questions
+                      if scores are mixed or moderate. Faster sessions, focused diagnosis.
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updateConfig({ questionMode: 'all' })}
+                    className={`rounded-lg border p-4 text-left transition-colors ${
+                      config.questionMode === 'all'
+                        ? 'border-navy-800 bg-navy-50'
+                        : 'border-navy-200 hover:border-navy-300'
+                    }`}
+                  >
+                    <span className="font-body text-body-sm font-medium text-navy-800 block">
+                      All questions
+                    </span>
+                    <span className="font-body text-body-xs text-navy-500 mt-1 block">
+                      All questions for selected domains (~20-24 per domain). More thorough
+                      coverage, richer pattern detection. Recommended for high-value engagements.
+                    </span>
+                  </button>
+                </div>
+                <p className="font-body text-body-xs text-navy-400">
+                  <strong>Impact:</strong> More questions means more data for the diagnostic engine.
+                  The engine can detect patterns with fewer questions, but more data increases
+                  confidence in findings and reduces the chance of missing subtle problems.
+                </p>
+              </div>
+
+              {/* Pattern matching sensitivity */}
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-body text-body-sm font-medium text-navy-700 mb-1">
+                    Diagnostic sensitivity
+                  </h4>
+                  <p className="font-body text-body-xs text-navy-400 mb-4">
+                    Controls how sensitive the pattern matching engine is. Lower thresholds detect
+                    more patterns but may surface weaker signals. Higher thresholds are more
+                    conservative and only surface strong, well-evidenced findings.
+                  </p>
+                </div>
+
+                <ConfigSlider
+                  label="Gap detection threshold"
+                  value={config.contrastThreshold}
+                  min={0.5}
+                  max={2.0}
+                  step={0.1}
+                  onChange={v => updateConfig({ contrastThreshold: v })}
+                  format={v => `${v.toFixed(1)} points`}
+                  description="Minimum score gap between question groups to trigger a pattern (e.g., 'process is strong but data access is weak'). Lower values detect subtler gaps. Default: 0.8 on a 1-5 scale."
+                />
+
+                <ConfigSlider
+                  label="Inconsistency detection threshold"
+                  value={config.stddevThreshold}
+                  min={0.5}
+                  max={2.0}
+                  step={0.1}
+                  onChange={v => updateConfig({ stddevThreshold: v })}
+                  format={v => `${v.toFixed(1)} std dev`}
+                  description="Minimum score variance within a domain to flag inconsistent process application. Lower values flag more variance. Default: 1.0 standard deviation."
+                />
+
+                <ConfigSlider
+                  label="Data trust confidence threshold"
+                  value={config.confidenceThresholdPct}
+                  min={20}
+                  max={80}
+                  step={5}
+                  onChange={v => updateConfig({ confidenceThresholdPct: v })}
+                  format={v => `${v}%`}
+                  description="Percentage of answers that must have 'low confidence' to trigger a data trust deficit finding. Lower values are more sensitive. Default: 40%."
+                />
+
+                <ConfigSlider
+                  label="Minimum answer coverage"
+                  value={config.minAnsweredPct}
+                  min={25}
+                  max={75}
+                  step={5}
+                  onChange={v => updateConfig({ minAnsweredPct: v })}
+                  format={v => `${v}%`}
+                  description="Minimum percentage of a rule's questions that must be answered for the rule to evaluate. Lower values allow the engine to work with less data. Default: 50%."
+                />
+              </div>
+            </div>
+
+            {/* Reset to defaults */}
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setConfig(DEFAULT_CONFIG)
+                  onUpdateConfig?.(DEFAULT_CONFIG)
+                }}
+                className="font-body text-body-xs text-navy-400 hover:text-navy-600 transition-colors"
+              >
+                Reset to defaults
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="bg-navy-50 rounded-lg p-4 border border-navy-100">

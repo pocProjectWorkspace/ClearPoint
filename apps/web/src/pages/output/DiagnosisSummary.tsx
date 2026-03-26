@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, LabelList } from 'recharts'
+import { pdf } from '@react-pdf/renderer'
 import { api } from '../../lib/api'
 import { DOMAINS } from '../../lib/constants'
 import { useUIStore } from '../../store/uiStore'
+import ReportDocument from '../../components/report/ReportDocument'
 import type { DiagnosticResult, RootCause, PatternMatch, ReasoningEntry, MaturityBand } from '@mindssparc/shared-types'
 
 // ── Tab bar shared across all output pages ──────────────────────
@@ -260,17 +262,30 @@ export default function DiagnosisSummary() {
   const clientMode = mode === 'client'
 
   async function handleExport() {
+    if (!result) return
     setExporting(true)
     try {
-      const blob = await api.exportPdf(engagementId!)
+      // Fetch engagement data for the cover page
+      const engRes = await api.getEngagement(engagementId!)
+      const engagement = engRes.data
+
+      // Generate PDF client-side using @react-pdf/renderer
+      const blob = await pdf(
+        <ReportDocument engagement={engagement} result={result} />
+      ).toBlob()
+
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `clearpoint-report.pdf`
+      const clientSlug = (engagement.clientName as string || 'report').replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()
+      a.download = `clearpoint-report-${clientSlug}.pdf`
       a.click()
       URL.revokeObjectURL(url)
-    } catch { /* error state */ }
-    finally { setExporting(false) }
+    } catch (e) {
+      console.error('PDF export failed:', e)
+    } finally {
+      setExporting(false)
+    }
   }
 
   useEffect(() => {

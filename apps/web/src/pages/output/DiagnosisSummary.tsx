@@ -160,13 +160,33 @@ function RootCauseCard({
 
 // ── Pattern row ─────────────────────────────────────────────────
 
+const DOMAIN_NAME_MAP: Record<string, string> = {
+  CRV: 'Customer & Revenue', MKT: 'Marketing & Demand', SVC: 'Service & Retention',
+  OPS: 'Operations & Fulfillment', PPL: 'People & Organisation', FIN: 'Finance & Risk',
+  TEC: 'Technology & Data', PRD: 'Product & Innovation',
+}
+
+function getPatternDomain(patternId: string): string | null {
+  // Pattern IDs like "siloed-systems--OPS" have domain suffix
+  const parts = patternId.split('--')
+  return parts.length > 1 ? parts[1] : null
+}
+
 function PatternRow({ pattern }: { pattern: PatternMatch }) {
+  const domain = getPatternDomain(pattern.patternId)
+  const domainLabel = domain ? DOMAIN_NAME_MAP[domain] : null
+
   return (
     <div className="flex items-center gap-3 py-2 border-b border-navy-50 last:border-0">
       <span
         className={`inline-block h-2 w-2 rounded-full ${pattern.fired ? 'bg-green-500' : 'bg-gray-300'}`}
       />
-      <span className="font-body text-body-sm text-navy-700 flex-1">{pattern.patternName}</span>
+      <span className="font-body text-body-sm text-navy-700 flex-1">
+        {pattern.patternName}
+        {domainLabel && (
+          <span className="text-navy-400 text-body-xs ml-1.5">({domainLabel})</span>
+        )}
+      </span>
       {pattern.fired ? (
         <span className="font-mono text-body-xs uppercase tracking-wider text-green-700 bg-green-50 px-2 py-0.5 rounded">
           Fired
@@ -401,20 +421,47 @@ export default function DiagnosisSummary() {
         {/* Pattern summary — consultant only */}
         {!clientMode && (
           <section className="mt-10">
-            <button
-              onClick={() => setPatternsExpanded(!patternsExpanded)}
-              className="font-body text-body-sm text-navy-500 hover:text-navy-700 transition-colors"
-            >
-              {patternsExpanded ? 'Hide pattern results' : `Show all pattern results (${result.patterns.length})`}
-            </button>
+            {(() => {
+              const firedPatterns = result.patterns.filter(p => p.fired)
+              const unfiredPatterns = result.patterns.filter(p => !p.fired)
+              // Deduplicate unfired by name (don't show same unfired pattern per domain)
+              const seenUnfired = new Set<string>()
+              const dedupedUnfired = unfiredPatterns.filter(p => {
+                if (seenUnfired.has(p.patternName)) return false
+                seenUnfired.add(p.patternName)
+                return true
+              })
 
-            {patternsExpanded && (
-              <div className="mt-4 rounded-lg border border-navy-100 bg-white p-5">
-                {result.patterns.map(p => (
-                  <PatternRow key={p.patternId} pattern={p} />
-                ))}
-              </div>
-            )}
+              return (
+                <>
+                  <button
+                    onClick={() => setPatternsExpanded(!patternsExpanded)}
+                    className="font-body text-body-sm text-navy-500 hover:text-navy-700 transition-colors"
+                  >
+                    {patternsExpanded
+                      ? 'Hide pattern results'
+                      : `Show pattern results (${firedPatterns.length} fired, ${dedupedUnfired.length} evaluated)`}
+                  </button>
+
+                  {patternsExpanded && (
+                    <div className="mt-4 rounded-lg border border-navy-100 bg-white p-5">
+                      {firedPatterns.length > 0 && (
+                        <div className="mb-3">
+                          <p className="font-body text-body-xs text-navy-400 mb-2 uppercase tracking-wider font-medium">Triggered patterns</p>
+                          {firedPatterns.map(p => (
+                            <PatternRow key={p.patternId} pattern={p} />
+                          ))}
+                        </div>
+                      )}
+                      <p className="font-body text-body-xs text-navy-400 mb-2 uppercase tracking-wider font-medium mt-4">Evaluated but not triggered</p>
+                      {dedupedUnfired.map(p => (
+                        <PatternRow key={p.patternId} pattern={p} />
+                      ))}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </section>
         )}
       </div>

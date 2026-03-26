@@ -93,6 +93,7 @@ export type Question = {
   id: string
   text: string
   preAnswerContext: string
+  consultantGuide?: string
   domain: Domain
   capabilityArea: string
   interventionSignal: InterventionType

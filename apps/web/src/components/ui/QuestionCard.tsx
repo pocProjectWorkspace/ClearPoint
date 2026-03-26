@@ -79,6 +79,7 @@ export default function QuestionCard({
   onToggleContext,
 }: QuestionCardProps) {
   const [notesOpen, setNotesOpen] = useState(notes.length > 0)
+  const [guideOpen, setGuideOpen] = useState(false)
 
   const domainColor = DOMAIN_COLORS[question.domain] ?? DOMAIN_COLORS.CRV
   const domainName = DOMAIN_NAMES[question.domain] ?? question.domain
@@ -104,6 +105,55 @@ export default function QuestionCard({
           {question.capabilityArea}
         </span>
       </div>
+
+      {/* ── Consultant coaching guide ─────────────────────────── */}
+      {isConsultantMode && question.consultantGuide && (
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => setGuideOpen(!guideOpen)}
+            className={`flex w-full items-center gap-2 rounded-lg border px-4 py-3 text-left transition-all ${
+              guideOpen
+                ? 'border-amber-300 bg-amber-50'
+                : 'border-amber-200 bg-amber-50/50 hover:bg-amber-50 hover:border-amber-300'
+            }`}
+          >
+            <span className="text-amber-600 text-body-sm">
+              {guideOpen ? '▾' : '▸'}
+            </span>
+            <span className="font-body text-body-sm font-medium text-amber-800">
+              Consultant guide — how to ask this question
+            </span>
+          </button>
+
+          {guideOpen && (
+            <div className="mt-0 rounded-b-lg border border-t-0 border-amber-200 bg-amber-50/30 px-5 py-4 space-y-3">
+              {question.consultantGuide.split('\n\n').map((section, i) => {
+                // Parse section headers (HOW TO ASK:, LISTEN FOR:, etc.)
+                const colonIdx = section.indexOf(':')
+                const hasHeader = colonIdx > 0 && colonIdx < 25 && section === section.trimStart()
+                const header = hasHeader ? section.slice(0, colonIdx) : null
+                const body = hasHeader ? section.slice(colonIdx + 1).trim() : section.trim()
+
+                if (!body) return null
+
+                return (
+                  <div key={i}>
+                    {header && (
+                      <span className="font-body text-body-xs font-bold uppercase tracking-wider text-amber-700 block mb-1">
+                        {header}
+                      </span>
+                    )}
+                    <p className="font-body text-body-sm leading-relaxed text-navy-700">
+                      {body}
+                    </p>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Pre-answer context ─────────────────────────────────── */}
       <div className="mt-5">

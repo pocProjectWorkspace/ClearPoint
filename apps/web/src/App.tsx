@@ -1,6 +1,7 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import AuthGuard from './components/AuthGuard'
 import ErrorBoundary from './components/ErrorBoundary'
+import TopNav from './components/TopNav'
 import Login from './pages/Login'
 import SetupWizard from './pages/setup/SetupWizard'
 import ReportPage from './pages/report/ReportPage'
@@ -23,9 +24,13 @@ function Protected({ children }: { children: React.ReactNode }) {
   return <AuthGuard>{children}</AuthGuard>
 }
 
-export default function App() {
+function AppContent() {
+  const location = useLocation()
+  const hideNav = location.pathname === '/login' || location.pathname.startsWith('/report/')
+
   return (
-    <ErrorBoundary>
+    <>
+      {!hideNav && <TopNav />}
       <Routes>
         <Route path="/login" element={<Login />} />
 
@@ -52,6 +57,14 @@ export default function App() {
         {/* Catch-all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+    </>
+  )
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
     </ErrorBoundary>
   )
 }

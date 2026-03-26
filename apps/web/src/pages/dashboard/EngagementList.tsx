@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../lib/api'
-import { useAuth } from '../../hooks/useAuth'
 import { useEngagementStore } from '../../store/engagementStore'
 import { formatDate } from '../../lib/formatters'
 
@@ -33,7 +32,6 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function EngagementList() {
   const navigate = useNavigate()
-  const { consultant, logout } = useAuth()
   const { resetDraft, loadDraft } = useEngagementStore()
   const [engagements, setEngagements] = useState<Record<string, unknown>[]>([])
   const [loading, setLoading] = useState(true)
@@ -92,22 +90,6 @@ export default function EngagementList() {
 
   return (
     <div className="min-h-screen bg-warm-50">
-      {/* Header */}
-      <header className="border-b border-navy-100 bg-white">
-        <div className="mx-auto flex max-w-content items-center justify-between px-6 py-4">
-          <h1 className="font-display text-display-sm tracking-tight text-navy-900">ClearPoint</h1>
-          <div className="flex items-center gap-4">
-            <span className="font-body text-body-sm text-navy-500">{consultant?.name}</span>
-            <button
-              onClick={() => { logout(); navigate('/login') }}
-              className="font-body text-body-sm text-navy-400 transition-colors hover:text-navy-700"
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-      </header>
-
       <main className="mx-auto max-w-content px-6 pt-10 pb-20">
         <div className="mb-8 flex items-center justify-between">
           <h2 className="font-display text-display-lg text-navy-900">Engagements</h2>

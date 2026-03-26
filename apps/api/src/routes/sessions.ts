@@ -13,7 +13,7 @@ sessionRouter.use(authMiddleware)
 // ── Adaptive question prioritisation ────────────────────────────
 
 const SIGNAL_PRIORITY: InterventionType[] = ['PROCESS', 'DIGITIZE', 'INTEGRATE', 'AUTOMATE', 'ANALYTICS', 'AI']
-const SIGNAL_QUESTIONS_PER_DOMAIN = 8
+const SIGNAL_QUESTIONS_PER_DOMAIN = 16
 
 type QuestionPriority = 'signal' | 'detail' | 'depth'
 
@@ -102,13 +102,13 @@ function evaluateDomainForExpansion(
   }
 
   // Scores are mixed — need detail questions to understand why
-  if (variance > 1.0) {
+  if (variance > 0.5) {
     return { needsExpansion: true, reason: `Mixed signals (variance ${variance.toFixed(1)}) — detail questions will clarify` }
   }
 
-  // Moderate scores with low variance — signal is enough
-  if (avg >= 2.0 && avg <= 4.0 && variance <= 1.0) {
-    return { needsExpansion: false, reason: `Consistent moderate scores (avg ${avg.toFixed(1)}) — signal is sufficient` }
+  // Moderate scores — expand to get richer diagnostic data
+  if (avg >= 2.0 && avg <= 4.0) {
+    return { needsExpansion: true, reason: `Moderate scores (avg ${avg.toFixed(1)}) — expanding for richer diagnosis` }
   }
 
   return { needsExpansion: false, reason: 'Default — signal sufficient' }

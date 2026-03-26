@@ -65,7 +65,7 @@ function ErrorState({ message, engagementId }: { message: string; engagementId: 
   const handleGenerate = async () => {
     setRunning(true)
     try {
-      await api.runDiagnostic(engagementId)
+      await api.runDiagnostic(engagementId, true)
       window.location.reload()
     } catch {
       setRunning(false)
@@ -284,29 +284,21 @@ export default function BusinessCase() {
               {/* Priority scores */}
               {bc.priorityScores && bc.priorityScores.length > 0 && (
                 <>
-                  <h4 className="font-display text-body-md text-navy-900 mt-6 mb-3">Priority scores</h4>
+                  <h4 className="font-display text-body-md text-navy-900 mt-6 mb-3">Initiative priority ranking</h4>
                   <table className="w-full font-body text-body-sm">
                     <thead>
                       <tr className="border-b border-navy-100">
-                        <th className="py-2 text-left text-navy-500 font-normal">Item</th>
-                        <th className="py-2 text-right text-navy-500 font-normal">Revenue</th>
-                        <th className="py-2 text-right text-navy-500 font-normal">Feasibility</th>
-                        <th className="py-2 text-right text-navy-500 font-normal">Data</th>
-                        <th className="py-2 text-right text-navy-500 font-normal">Time</th>
-                        <th className="py-2 text-right text-navy-500 font-normal">Reuse</th>
-                        <th className="py-2 text-right text-navy-500 font-normal">Total</th>
+                        <th className="py-2 text-left text-navy-500 font-normal">Rank</th>
+                        <th className="py-2 text-left text-navy-500 font-normal">Initiative</th>
+                        <th className="py-2 text-right text-navy-500 font-normal">Priority score</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {bc.priorityScores.map(ps => (
+                      {bc.priorityScores.map((ps: any, idx: number) => (
                         <tr key={ps.roadmapItemId} className="border-b border-navy-50">
-                          <td className="py-2 font-mono text-body-xs text-navy-600">{ps.roadmapItemId}</td>
-                          <td className="py-2 text-right font-mono text-navy-700">{ps.revenueImpact.toFixed(1)}</td>
-                          <td className="py-2 text-right font-mono text-navy-700">{ps.feasibility.toFixed(1)}</td>
-                          <td className="py-2 text-right font-mono text-navy-700">{ps.dataReadiness.toFixed(1)}</td>
-                          <td className="py-2 text-right font-mono text-navy-700">{ps.timeToValue.toFixed(1)}</td>
-                          <td className="py-2 text-right font-mono text-navy-700">{ps.crossDomainReuse.toFixed(1)}</td>
-                          <td className="py-2 text-right font-mono font-medium text-navy-900">{ps.totalScore.toFixed(1)}</td>
+                          <td className="py-2 font-mono text-body-xs text-navy-600">{idx + 1}</td>
+                          <td className="py-2 text-navy-700">{ps.roadmapItemId}</td>
+                          <td className="py-2 text-right font-mono font-medium text-navy-900">{ps.totalScore}</td>
                         </tr>
                       ))}
                     </tbody>

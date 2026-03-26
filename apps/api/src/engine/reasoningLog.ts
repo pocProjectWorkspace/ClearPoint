@@ -50,6 +50,72 @@ async function callClaudeAPI(prompt: string, maxTokens: number): Promise<string 
   }
 }
 
+// Generate a rich fallback explanation when Claude API isn't available
+function generateScoreFallback(ds: DomainScoreResult): string {
+  const lowestQs = ds.breakdown.lowestScoring.slice(0, 3)
+  const highestQs = ds.breakdown.highestScoring.slice(0, 2)
+
+  const domainLabel = ds.domain
+  let text = `${domainLabel} scored ${ds.score}/100, placing it in the ${ds.maturityBand} maturity band.`
+
+  if (ds.score < 30) {
+    text += ` This is a critically low score indicating significant foundational gaps that need to be addressed before any technology-led intervention.`
+  } else if (ds.score < 50) {
+    text += ` This indicates emerging capabilities with clear room for improvement across process, data, and automation dimensions.`
+  } else if (ds.score < 70) {
+    text += ` This shows a developing function with some strong areas alongside gaps that present clear improvement opportunities.`
+  } else {
+    text += ` This demonstrates a mature function with solid foundations, though there may still be opportunities for AI and advanced analytics.`
+  }
+
+  if (lowestQs.length > 0) {
+    text += ` The weakest areas were: ${lowestQs.map(q => `"${q.text.slice(0, 60)}..." (score: ${q.score.toFixed(1)})`).join('; ')}.`
+  }
+  if (highestQs.length > 0) {
+    text += ` Strongest: ${highestQs.map(q => `"${q.text.slice(0, 60)}..." (${q.score.toFixed(1)})`).join('; ')}.`
+  }
+
+  return text
+}
+
+function generatePatternFallback(pattern: PatternMatchResult, answers: AnswerRow[]): string {
+  if (pattern.fired) {
+    const evidenceDetails = pattern.evidenceQuestionIds.slice(0, 4).map(qid => {
+      const q = getQuestionById(qid)
+      const ans = answers.find(a => a.questionId === qid)
+      return `${q?.text.slice(0, 50) || qid}... (scored ${ans?.rawScore || '?'}/5)`
+    }).join('; ')
+
+    let text = `${pattern.ruleName}: TRIGGERED (confidence: ${pattern.confidence}).`
+    if (pattern.contrastDelta) {
+      text += ` Gap of ${Math.abs(pattern.contrastDelta).toFixed(1)} points detected between question groups.`
+    }
+    text += ` Evidence: ${evidenceDetails}.`
+    text += ` ${substituteScores(pattern.explanationTemplate, answers)}`
+    return text
+  }
+
+  // Not triggered — explain what would need to change
+  return `${pattern.ruleName}: Not triggered for this engagement. The conditions for this pattern — ${pattern.description.slice(0, 100)}... — were not met in the current assessment data.`
+}
+
+function generateBusinessCaseFallback(bc: BusinessCaseResult): string {
+  const domainCosts = Object.entries(bc.problemCostByDomain)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([domain, cost]) => `${domain}: $${cost.toFixed(1)}M`)
+    .join(', ')
+
+  return `Total estimated problem cost across ${Object.keys(bc.problemCostByDomain).length} assessed domains is $${bc.totalProblemCost.toFixed(1)}M. ` +
+    `The highest-cost domains are ${domainCosts}. ` +
+    `The value stack breaks down as: Process & Digitise $${bc.valueByTier.tier01.toFixed(1)}M, ` +
+    `Automate & Integrate $${bc.valueByTier.tier2.toFixed(1)}M, ` +
+    `Analytics $${bc.valueByTier.tier3.toFixed(1)}M, AI $${bc.valueByTier.tier4.toFixed(1)}M. ` +
+    `Conservative 12-month recovery estimate: $${bc.conservative12Month.toFixed(1)}M. ` +
+    `Realistic 24-month projection: $${bc.realistic24Month.toFixed(1)}M. ` +
+    `All values are derived from the engagement's revenue range (${bc.formulaInputs.revenueRange}) and domain maturity scores — no hardcoded values are used.`
+}
+
 export async function generateReasoningLog(
   domainScores: DomainScoreResult[],
   patterns: PatternMatchResult[],
@@ -61,31 +127,20 @@ export async function generateReasoningLog(
 ): Promise<ReasoningEntry[]> {
   const entries: ReasoningEntry[] = []
 
-  // 1. Score entries (structured — no API call needed)
+  // 1. Score entries
   for (const ds of domainScores) {
-    const lowestQs = ds.breakdown.lowestScoring.slice(0, 3)
-    const highestQs = ds.breakdown.highestScoring.slice(0, 2)
-
     entries.push({
       outputType: 'score',
       outputId: `score-${ds.domain}`,
-      explanation: `${ds.domain} scored ${ds.score}/100 (${ds.maturityBand}). ${
-        lowestQs.length > 0
-          ? `Weakest areas: ${lowestQs.map(q => `"${q.text.slice(0, 50)}..." (${q.score.toFixed(1)})`).join(', ')}.`
-          : ''
-      } ${
-        highestQs.length > 0
-          ? `Strongest: ${highestQs.map(q => `"${q.text.slice(0, 50)}..." (${q.score.toFixed(1)})`).join(', ')}.`
-          : ''
-      }`,
+      explanation: generateScoreFallback(ds),
       contributingFactors: [
-        ...lowestQs.map(q => ({
+        ...ds.breakdown.lowestScoring.slice(0, 3).map(q => ({
           questionId: q.questionId,
           weight: q.score,
           direction: 'negative' as const,
           description: q.text.slice(0, 80),
         })),
-        ...highestQs.map(q => ({
+        ...ds.breakdown.highestScoring.slice(0, 2).map(q => ({
           questionId: q.questionId,
           weight: q.score,
           direction: 'positive' as const,
@@ -95,20 +150,15 @@ export async function generateReasoningLog(
     })
   }
 
-  // 2. Pattern entries (structured)
-  for (const pattern of patterns) {
-    const statusText = pattern.fired
-      ? `FIRED (confidence: ${pattern.confidence}${pattern.contrastDelta ? `, delta: ${pattern.contrastDelta}` : ''})`
-      : 'Not triggered'
+  // 2. Pattern entries — only include fired patterns and notable unfired ones
+  const firedPatterns = patterns.filter(p => p.fired)
+  const unfiredPatterns = patterns.filter(p => !p.fired)
 
+  for (const pattern of firedPatterns) {
     entries.push({
       outputType: 'pattern',
       outputId: `pattern-${pattern.ruleId}`,
-      explanation: `${pattern.ruleName}: ${statusText}. ${
-        pattern.fired
-          ? substituteScores(pattern.explanationTemplate, answers)
-          : `Conditions not met for this pattern.`
-      }`,
+      explanation: generatePatternFallback(pattern, answers),
       contributingFactors: pattern.evidenceQuestionIds.map((qid, i) => ({
         questionId: qid,
         weight: pattern.evidenceScores[i] || 0,
@@ -118,7 +168,17 @@ export async function generateReasoningLog(
     })
   }
 
-  // 3. Root cause entries — try Claude API in batches, fallback to template
+  // Include unfired patterns as a summary if there are any
+  if (unfiredPatterns.length > 0) {
+    entries.push({
+      outputType: 'pattern',
+      outputId: 'patterns-not-triggered',
+      explanation: `${unfiredPatterns.length} diagnostic patterns were evaluated but did not trigger: ${unfiredPatterns.map(p => p.ruleName).join(', ')}. This means the assessment data did not show the specific combinations of scores that indicate these particular problems.`,
+      contributingFactors: [],
+    })
+  }
+
+  // 3. Root cause entries — try Claude API, fallback to rich templates
   const rcPromises = rootCauses.map(async (rc) => {
     const evidenceTexts = rc.evidenceQuestionIds.map(qid => {
       const q = getQuestionById(qid)
@@ -130,8 +190,8 @@ export async function generateReasoningLog(
 
     const narrative = await callClaudeAPI(prompt, 300)
 
-    // Fallback: use pattern explanation template with score substitution
-    const fallbackText = `${rc.name}: ${rc.description}`
+    // Rich fallback
+    const fallbackText = `${rc.name}: ${rc.description} This finding is based on ${rc.evidenceQuestionIds.length} assessment responses that collectively indicate this pattern. Severity: ${rc.severity}.`
 
     return {
       outputType: 'rootCause' as const,
@@ -158,26 +218,31 @@ export async function generateReasoningLog(
     }
   }
 
-  // 4. Roadmap entries (structured)
+  // 4. Roadmap entries
   for (const item of roadmap) {
+    const rootCauseNames = item.rootCauseIds.map(rcId => {
+      const rc = rootCauses.find(r => r.id === rcId)
+      return rc?.name || rcId
+    }).join(', ')
+
     entries.push({
       outputType: 'roadmapItem',
       outputId: item.id,
-      explanation: `${item.title}: ${item.description} Expected outcome: ${item.expectedOutcome}`,
+      explanation: `${item.title} (${item.phase}-day): ${item.description} This action addresses: ${rootCauseNames}. Expected outcome: ${item.expectedOutcome}`,
       contributingFactors: item.rootCauseIds.map(rcId => ({
         patternId: rcId,
         weight: item.phase === 30 ? 1.0 : item.phase === 60 ? 0.7 : 0.4,
         direction: 'negative' as const,
-        description: `Addresses root cause ${rcId}`,
+        description: `Addresses: ${rootCauses.find(r => r.id === rcId)?.name || rcId}`,
       })),
     })
   }
 
-  // 5. Business case entry (structured)
+  // 5. Business case entry
   entries.push({
     outputType: 'businessCase',
     outputId: 'business-case-summary',
-    explanation: `Total problem cost: $${businessCase.totalProblemCost.toFixed(1)}M across ${Object.keys(businessCase.problemCostByDomain).length} domains. Tier 0-1 (Process): $${businessCase.valueByTier.tier01.toFixed(1)}M. Tier 2 (Automation): $${businessCase.valueByTier.tier2.toFixed(1)}M. Tier 3 (Analytics): $${businessCase.valueByTier.tier3.toFixed(1)}M. Tier 4 (AI): $${businessCase.valueByTier.tier4.toFixed(1)}M. Conservative 12-month recovery: $${businessCase.conservative12Month.toFixed(1)}M. Realistic 24-month: $${businessCase.realistic24Month.toFixed(1)}M.`,
+    explanation: generateBusinessCaseFallback(businessCase),
     contributingFactors: Object.entries(businessCase.problemCostByDomain).map(([domain, cost]) => ({
       patternId: `domain-${domain}`,
       weight: cost,

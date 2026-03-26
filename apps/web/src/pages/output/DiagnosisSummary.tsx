@@ -218,7 +218,7 @@ function ErrorState({ message, engagementId }: { message: string; engagementId: 
   const handleGenerate = async () => {
     setRunning(true)
     try {
-      await api.runDiagnostic(engagementId)
+      await api.runDiagnostic(engagementId, true)
       window.location.reload()
     } catch {
       setRunning(false)

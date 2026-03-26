@@ -1,23 +1,90 @@
 import { PrismaClient } from '@prisma/client'
 import { loadQuestions } from '@mindssparc/question-bank'
-import type { Domain, InterventionWeights } from '@mindssparc/shared-types'
+import type { Domain, InterventionWeights, MaturityBand } from '@mindssparc/shared-types'
 import { calculateDomainScore, calculateInterventionTierScores } from './scoring'
+import type { DomainScoreResult } from './scoring'
 import { matchPatterns } from './patternMatcher'
+import type { PatternMatchResult } from './patternMatcher'
 import { generateRootCauses } from './rootCauseGenerator'
 import { buildRoadmap } from './roadmapBuilder'
 import { calculateBusinessCase } from './businessCase'
+import type { BusinessCaseResult } from './businessCase'
 import { generateReasoningLog } from './reasoningLog'
 
 const prisma = new PrismaClient()
 
+// ── Transform engine types to shared frontend types ──────────────
+
+const MATURITY_BAND_MAP: Record<string, MaturityBand> = {
+  'Leading': 'leading',
+  'Advanced': 'advanced',
+  'Developing': 'established',
+  'Emerging': 'developing',
+  'Foundational': 'nascent',
+}
+
+function transformDomainScores(scores: DomainScoreResult[]) {
+  return scores.map(ds => ({
+    domain: ds.domain,
+    rawScore: ds.score,
+    weightedScore: ds.score,
+    maxPossible: 100,
+    percentage: ds.score,
+    maturityBand: MATURITY_BAND_MAP[ds.maturityBand] || 'nascent',
+    questionCount: ds.questionCount,
+    answeredCount: ds.answeredCount,
+    breakdown: ds.breakdown,
+  }))
+}
+
+function transformPatterns(patterns: PatternMatchResult[]) {
+  return patterns.map(p => ({
+    patternId: p.ruleId,
+    patternName: p.ruleName,
+    fired: p.fired,
+    evidenceQuestionIds: p.evidenceQuestionIds,
+    severity: p.severity,
+    description: p.description,
+    confidence: p.confidence,
+    contrastDelta: p.contrastDelta,
+    diagnosis: p.diagnosis,
+    recommendedActions: p.recommendedActions,
+    explanationTemplate: p.explanationTemplate,
+    evidenceScores: p.evidenceScores,
+  }))
+}
+
+function transformBusinessCase(bc: BusinessCaseResult) {
+  return {
+    problemCost: bc.totalProblemCost,
+    tier01Value: bc.valueByTier.tier01,
+    tier2Value: bc.valueByTier.tier2,
+    tier3Value: bc.valueByTier.tier3 + bc.valueByTier.tier4,
+    totalValue: bc.totalValue,
+    conservative12Month: bc.conservative12Month,
+    realistic24Month: bc.realistic24Month,
+    priorityScores: bc.prioritizedInitiatives.map(pi => ({
+      roadmapItemId: pi.roadmapItemId,
+      revenueImpact: 0,
+      feasibility: 0,
+      dataReadiness: 0,
+      timeToValue: 0,
+      crossDomainReuse: 0,
+      totalScore: pi.priorityScore,
+    })),
+    problemCostByDomain: bc.problemCostByDomain,
+    formulaInputs: bc.formulaInputs,
+  }
+}
+
 export type DiagnosticOutput = {
   engagementId: string
-  domainScores: ReturnType<typeof calculateDomainScore>[]
-  patterns: ReturnType<typeof matchPatterns>
+  domainScores: ReturnType<typeof transformDomainScores>
+  patterns: ReturnType<typeof transformPatterns>
   rootCauses: ReturnType<typeof generateRootCauses>
   interventionMap: ReturnType<typeof calculateInterventionTierScores>
   roadmap: ReturnType<typeof buildRoadmap>
-  businessCase: ReturnType<typeof calculateBusinessCase>
+  businessCase: ReturnType<typeof transformBusinessCase>
   reasoningLog: Awaited<ReturnType<typeof generateReasoningLog>>
   generatedAt: string
 }
@@ -78,18 +145,18 @@ export async function runDiagnostic(
   }
 
   // 3. Scoring
-  const domainScores = domainsInScope.map(domain =>
+  const rawDomainScores = domainsInScope.map(domain =>
     calculateDomainScore(domain, answers, allQuestions, interventionWeights)
   )
 
   // 4. Intervention map
-  const interventionMap = calculateInterventionTierScores(domainScores, answers, allQuestions, interventionWeights)
+  const interventionMap = calculateInterventionTierScores(rawDomainScores, answers, allQuestions, interventionWeights)
 
   // 5. Pattern matching
-  const patterns = matchPatterns(answers)
+  const rawPatterns = matchPatterns(answers)
 
   // 6. Root causes
-  const rootCauses = generateRootCauses(patterns, {
+  const rootCauses = generateRootCauses(rawPatterns, {
     confidenceLevel: engagement.confidenceLevel,
   })
 
@@ -100,7 +167,7 @@ export async function runDiagnostic(
   })
 
   // 8. Business case
-  const businessCase = calculateBusinessCase(domainScores, roadmap, {
+  const rawBusinessCase = calculateBusinessCase(rawDomainScores, roadmap, {
     revenueRange: engagement.revenueRange,
     interventionWeights,
     domainsInScope,
@@ -108,11 +175,11 @@ export async function runDiagnostic(
 
   // 9. Reasoning log
   const reasoningLog = await generateReasoningLog(
-    domainScores,
-    patterns,
+    rawDomainScores,
+    rawPatterns,
     rootCauses,
     roadmap,
-    businessCase,
+    rawBusinessCase,
     answers,
     {
       industry: engagement.industry,
@@ -122,9 +189,14 @@ export async function runDiagnostic(
     }
   )
 
+  // 10. Transform to frontend-expected shapes
+  const domainScores = transformDomainScores(rawDomainScores)
+  const patterns = transformPatterns(rawPatterns)
+  const businessCase = transformBusinessCase(rawBusinessCase)
+
   const generatedAt = new Date()
 
-  // 10. Save to DB (upsert)
+  // 11. Save to DB (upsert) — save transformed shapes
   await prisma.diagnosticResult.upsert({
     where: { engagementId },
     update: {

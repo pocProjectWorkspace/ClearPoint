@@ -1,5 +1,7 @@
 import type { DiagnosticRule } from '@mindssparc/shared-types'
 import { loadRules } from '@mindssparc/diagnostic-rules'
+import { loadQuestions } from '@mindssparc/question-bank'
+import type { Domain } from '@mindssparc/shared-types'
 
 type AnswerRow = {
   questionId: string
@@ -22,28 +24,115 @@ export type PatternMatchResult = {
   explanationTemplate: string
 }
 
+// Only return scores for questions that were actually answered
 function getScore(questionId: string, answers: AnswerRow[]): number {
   const a = answers.find(ans => ans.questionId === questionId)
   return a ? a.rawScore : 0
 }
 
-function getAvg(questionIds: string[], answers: AnswerRow[]): number {
-  const scores = questionIds.map(id => getScore(id, answers))
-  if (scores.length === 0) return 0
-  return scores.reduce((s, v) => s + v, 0) / scores.length
+function getAnswered(questionIds: string[], answers: AnswerRow[]): AnswerRow[] {
+  return questionIds
+    .map(id => answers.find(a => a.questionId === id))
+    .filter((a): a is AnswerRow => a !== undefined && a.rawScore > 0)
 }
 
-function getStdDev(questionIds: string[], answers: AnswerRow[]): number {
-  const scores = questionIds.map(id => getScore(id, answers))
-  if (scores.length < 2) return 0
+function getAvgAnswered(questionIds: string[], answers: AnswerRow[]): { avg: number; count: number } {
+  const answered = getAnswered(questionIds, answers)
+  if (answered.length === 0) return { avg: 0, count: 0 }
+  const avg = answered.reduce((s, a) => s + a.rawScore, 0) / answered.length
+  return { avg, count: answered.length }
+}
+
+function getStdDevAnswered(questionIds: string[], answers: AnswerRow[]): { stdDev: number; count: number } {
+  const answered = getAnswered(questionIds, answers)
+  if (answered.length < 2) return { stdDev: 0, count: answered.length }
+  const scores = answered.map(a => a.rawScore)
   const avg = scores.reduce((s, v) => s + v, 0) / scores.length
   const variance = scores.reduce((s, v) => s + (v - avg) ** 2, 0) / scores.length
-  return Math.sqrt(variance)
+  return { stdDev: Math.sqrt(variance), count: answered.length }
+}
+
+// Match patterns across ALL domains, not just CRV
+function expandRuleToDomains(rule: DiagnosticRule, domainsAnswered: Domain[]): DiagnosticRule[] {
+  // Check if the rule only references CRV questions
+  const allQIds = rule.triggerConditions.flatMap(c => [...c.questionIds, ...(c.contrastGroup || [])])
+  const onlyCRV = allQIds.every(id => id.startsWith('CRV-'))
+
+  if (!onlyCRV) return [rule] // Rule already references multiple domains
+
+  // For each answered domain, create a version of the rule with domain-mapped question IDs
+  const allQuestions = loadQuestions()
+  const expanded: DiagnosticRule[] = []
+
+  for (const domain of domainsAnswered) {
+    if (domain === 'CRV') {
+      expanded.push(rule) // Original rule for CRV
+      continue
+    }
+
+    // Get questions for this domain, sorted by baseWeight descending
+    const domainQs = allQuestions
+      .filter(q => q.domain === domain)
+      .sort((a, b) => b.baseWeight - a.baseWeight)
+
+    if (domainQs.length < 5) continue // Not enough questions to map
+
+    // Create a mapping from CRV question indices to domain question IDs
+    const crvQs = allQuestions
+      .filter(q => q.domain === 'CRV')
+      .sort((a, b) => b.baseWeight - a.baseWeight)
+
+    const crvIdToIndex = new Map<string, number>()
+    crvQs.forEach((q, i) => crvIdToIndex.set(q.id, i))
+
+    function mapId(crvId: string): string | null {
+      const idx = crvIdToIndex.get(crvId)
+      if (idx === undefined || idx >= domainQs.length) return null
+      return domainQs[idx].id
+    }
+
+    // Map all conditions
+    const mappedConditions = rule.triggerConditions.map(cond => {
+      const mappedQIds = cond.questionIds.map(mapId).filter((id): id is string => id !== null)
+      const mappedContrast = cond.contrastGroup?.map(mapId).filter((id): id is string => id !== null)
+
+      return {
+        ...cond,
+        questionIds: mappedQIds,
+        contrastGroup: mappedContrast,
+      }
+    })
+
+    // Only add if we mapped enough questions (at least 60% of original)
+    const originalCount = rule.triggerConditions.reduce((s, c) => s + c.questionIds.length, 0)
+    const mappedCount = mappedConditions.reduce((s, c) => s + c.questionIds.length, 0)
+
+    if (mappedCount >= originalCount * 0.6) {
+      expanded.push({
+        ...rule,
+        id: `${rule.id}--${domain}`,
+        triggerConditions: mappedConditions,
+      })
+    }
+  }
+
+  return expanded
 }
 
 export function matchPatterns(answers: AnswerRow[]): PatternMatchResult[] {
   const rules = loadRules()
-  return rules.map(rule => evaluateRule(rule, answers))
+
+  // Determine which domains have answers
+  const allQuestions = loadQuestions()
+  const answeredQIds = new Set(answers.filter(a => a.rawScore > 0).map(a => a.questionId))
+  const domainsAnswered = [...new Set(
+    allQuestions.filter(q => answeredQIds.has(q.id)).map(q => q.domain)
+  )] as Domain[]
+
+  // Expand rules to cover all answered domains
+  const expandedRules = rules.flatMap(rule => expandRuleToDomains(rule, domainsAnswered))
+
+  return expandedRules.map(rule => evaluateRule(rule, answers))
 }
 
 function evaluateRule(rule: DiagnosticRule, answers: AnswerRow[]): PatternMatchResult {
@@ -61,20 +150,14 @@ function evaluateRule(rule: DiagnosticRule, answers: AnswerRow[]): PatternMatchR
     explanationTemplate: rule.explanationTemplate,
   }
 
-  // Special case: inconsistency-signal uses standard deviation, not threshold
-  if (rule.id === 'inconsistency-signal') {
-    const qids = rule.triggerConditions[0].questionIds
-    const stdDev = getStdDev(qids, answers)
-    const scores = qids.map(id => getScore(id, answers))
-    const nonZeroScores = scores.filter(s => s > 0)
+  // Special case: data-trust-deficit checks confidence levels, not just scores
+  if (rule.id.startsWith('data-trust-deficit')) {
+    return evaluateDataTrustDeficit(rule, answers, base)
+  }
 
-    if (nonZeroScores.length >= 3 && stdDev > 1.5) {
-      base.fired = true
-      base.confidence = stdDev > 2.0 ? 'high' : 'medium'
-      base.evidenceQuestionIds = qids.filter(id => getScore(id, answers) > 0)
-      base.evidenceScores = base.evidenceQuestionIds.map(id => getScore(id, answers))
-    }
-    return base
+  // Special case: inconsistency-signal uses standard deviation
+  if (rule.id.startsWith('inconsistency-signal')) {
+    return evaluateInconsistencySignal(rule, answers, base)
   }
 
   // Standard evaluation: all conditions must pass
@@ -84,63 +167,55 @@ function evaluateRule(rule: DiagnosticRule, answers: AnswerRow[]): PatternMatchR
 
   for (const condition of rule.triggerConditions) {
     const { questionIds, operator, threshold, contrastGroup } = condition
+    const answered = getAnswered(questionIds, answers)
+
+    // Need at least 50% of questions answered for a condition to be evaluable
+    if (answered.length < Math.max(1, Math.ceil(questionIds.length * 0.5))) {
+      allConditionsMet = false
+      break
+    }
 
     switch (operator) {
       case 'AND': {
-        // All questions must score <= threshold
         const t = threshold ?? 3.5
-        // For AND with "score above" thresholds (automation-ready, ai-candidate),
-        // check if all scores are >= threshold
-        const scores = questionIds.map(id => getScore(id, answers))
-        const answeredScores = scores.filter(s => s > 0)
+        const scores = answered.map(a => a.rawScore)
 
-        if (answeredScores.length === 0) {
+        // AND with threshold >= 3.0 means "all must score above threshold"
+        // AND with threshold < 3.0 means "all must score at or below threshold"
+        const isAboveThreshold = t >= 3.0
+        const met = isAboveThreshold
+          ? scores.every(s => s >= t)
+          : scores.every(s => s <= t)
+
+        if (!met) {
           allConditionsMet = false
         } else {
-          // AND: threshold >= 3.0 means "all must score above threshold"
-          //       threshold < 3.0 means "all must score at or below threshold"
-          const isAboveThreshold = t >= 3.0
-          const met = isAboveThreshold
-            ? answeredScores.every(s => s >= t)
-            : answeredScores.every(s => s <= t)
-
-          if (!met) allConditionsMet = false
-          else {
-            allEvidenceIds.push(...questionIds.filter(id => getScore(id, answers) > 0))
-            allEvidenceScores.push(...answeredScores)
-          }
+          allEvidenceIds.push(...answered.map(a => a.questionId))
+          allEvidenceScores.push(...scores)
         }
         break
       }
 
       case 'OR': {
-        // OR: at least one scores below threshold (already handled via inconsistency)
-        // This case shouldn't be reached for OR in our rules, but handle generically
         const t = threshold ?? 2.5
-        const scores = questionIds.map(id => getScore(id, answers))
-        const anyBelow = scores.some(s => s > 0 && s <= t)
-        if (!anyBelow) allConditionsMet = false
-        else {
-          const belowIds = questionIds.filter(id => { const s = getScore(id, answers); return s > 0 && s <= t })
-          allEvidenceIds.push(...belowIds)
-          allEvidenceScores.push(...belowIds.map(id => getScore(id, answers)))
+        const belowAnswers = answered.filter(a => a.rawScore <= t)
+        if (belowAnswers.length === 0) {
+          allConditionsMet = false
+        } else {
+          allEvidenceIds.push(...belowAnswers.map(a => a.questionId))
+          allEvidenceScores.push(...belowAnswers.map(a => a.rawScore))
         }
         break
       }
 
       case 'AVG_BELOW': {
         const t = threshold ?? 2.0
-        const answeredIds = questionIds.filter(id => getScore(id, answers) > 0)
-        if (answeredIds.length === 0) {
-          allConditionsMet = false
-          break
-        }
-        const avg = getAvg(answeredIds, answers)
-        if (avg >= t) {
+        const { avg, count } = getAvgAnswered(questionIds, answers)
+        if (count === 0 || avg >= t) {
           allConditionsMet = false
         } else {
-          allEvidenceIds.push(...answeredIds)
-          allEvidenceScores.push(...answeredIds.map(id => getScore(id, answers)))
+          allEvidenceIds.push(...answered.map(a => a.questionId))
+          allEvidenceScores.push(...answered.map(a => a.rawScore))
           // Set confidence based on how far below threshold
           if (avg < t * 0.7) base.confidence = 'high'
           else if (avg < t * 0.85) base.confidence = 'medium'
@@ -150,41 +225,33 @@ function evaluateRule(rule: DiagnosticRule, answers: AnswerRow[]): PatternMatchR
       }
 
       case 'CONTRAST': {
-        // Group A = questionIds, Group B = contrastGroup
-        // fired if groupB avg - groupA avg > 1.5
-        // Note: in the rules, Group A (questionIds) might be the high-scoring group
-        // and contrastGroup might be the low-scoring group, or vice versa.
-        // The rule says "Process questions high, data-access questions low"
-        // questionIds = process (high), contrastGroup = data (low expected)
-        // Delta = process avg - data avg, fires when delta > 1.5 (process high, data low)
-
         if (!contrastGroup || contrastGroup.length === 0) {
           allConditionsMet = false
           break
         }
 
-        const groupAIds = questionIds.filter(id => getScore(id, answers) > 0)
-        const groupBIds = contrastGroup.filter(id => getScore(id, answers) > 0)
+        const groupA = getAvgAnswered(questionIds, answers)
+        const groupB = getAvgAnswered(contrastGroup, answers)
 
-        if (groupAIds.length === 0 || groupBIds.length === 0) {
+        // Need at least 1 answered question in each group
+        if (groupA.count === 0 || groupB.count === 0) {
           allConditionsMet = false
           break
         }
 
-        const groupAAvg = getAvg(groupAIds, answers)
-        const groupBAvg = getAvg(groupBIds, answers)
-        const delta = groupAAvg - groupBAvg
-
+        const delta = groupA.avg - groupB.avg
         base.contrastDelta = Math.round(delta * 100) / 100
 
-        if (Math.abs(delta) > 1.5) {
-          allEvidenceIds.push(...groupAIds, ...groupBIds)
-          allEvidenceScores.push(
-            ...groupAIds.map(id => getScore(id, answers)),
-            ...groupBIds.map(id => getScore(id, answers))
-          )
-          if (Math.abs(delta) > 2.5) base.confidence = 'high'
-          else base.confidence = 'medium'
+        // Lowered threshold: 0.8 points on 1-5 scale (16% of range)
+        // This is more realistic for detecting genuine gaps
+        if (Math.abs(delta) >= 0.8) {
+          const answeredA = getAnswered(questionIds, answers)
+          const answeredB = getAnswered(contrastGroup, answers)
+          allEvidenceIds.push(...answeredA.map(a => a.questionId), ...answeredB.map(a => a.questionId))
+          allEvidenceScores.push(...answeredA.map(a => a.rawScore), ...answeredB.map(a => a.rawScore))
+          if (Math.abs(delta) >= 2.0) base.confidence = 'high'
+          else if (Math.abs(delta) >= 1.2) base.confidence = 'medium'
+          else base.confidence = 'low'
         } else {
           allConditionsMet = false
         }
@@ -197,7 +264,57 @@ function evaluateRule(rule: DiagnosticRule, answers: AnswerRow[]): PatternMatchR
     base.fired = true
     base.evidenceQuestionIds = [...new Set(allEvidenceIds)]
     base.evidenceScores = base.evidenceQuestionIds.map(id => getScore(id, answers))
-    // Keep highest confidence found
+  }
+
+  return base
+}
+
+// Special handler: data-trust-deficit checks answer confidence, not just scores
+function evaluateDataTrustDeficit(
+  rule: DiagnosticRule,
+  answers: AnswerRow[],
+  base: PatternMatchResult
+): PatternMatchResult {
+  const qids = rule.triggerConditions[0]?.questionIds || []
+  const answered = getAnswered(qids, answers)
+
+  if (answered.length < 3) return base // Need enough answers
+
+  // Check two conditions:
+  // 1. Scores are moderate (between 2.0 and 4.0 average)
+  const avg = answered.reduce((s, a) => s + a.rawScore, 0) / answered.length
+  if (avg < 2.0 || avg > 4.0) return base // Not moderate — different pattern
+
+  // 2. More than 40% of answers have 'low' confidence (lowered from 60% to catch more cases)
+  const lowConfCount = answered.filter(a => a.confidence === 'low').length
+  const lowConfPct = lowConfCount / answered.length
+
+  if (lowConfPct >= 0.4) {
+    base.fired = true
+    base.confidence = lowConfPct >= 0.7 ? 'high' : lowConfPct >= 0.5 ? 'medium' : 'low'
+    base.evidenceQuestionIds = answered.map(a => a.questionId)
+    base.evidenceScores = answered.map(a => a.rawScore)
+  }
+
+  return base
+}
+
+// Special handler: inconsistency-signal uses stddev on answered questions only
+function evaluateInconsistencySignal(
+  rule: DiagnosticRule,
+  answers: AnswerRow[],
+  base: PatternMatchResult
+): PatternMatchResult {
+  const qids = rule.triggerConditions[0]?.questionIds || []
+  const { stdDev, count } = getStdDevAnswered(qids, answers)
+
+  // Need at least 3 answered questions, lowered stddev threshold to 1.0
+  if (count >= 3 && stdDev >= 1.0) {
+    base.fired = true
+    base.confidence = stdDev >= 1.8 ? 'high' : stdDev >= 1.3 ? 'medium' : 'low'
+    const answered = getAnswered(qids, answers)
+    base.evidenceQuestionIds = answered.map(a => a.questionId)
+    base.evidenceScores = answered.map(a => a.rawScore)
   }
 
   return base

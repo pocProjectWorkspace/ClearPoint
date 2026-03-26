@@ -88,12 +88,8 @@ app.get('/api/health', async (_req, res) => {
     name: 'ClearPoint',
     version: '1.0.0',
     database: dbStatus,
-    ...(dbError && { dbError }),
-    dbUrlSet: !!process.env.DATABASE_URL,
-    directUrlSet: !!process.env.DIRECT_URL,
     questionBank: { total: questions.length, domains: domains.size },
     environment: isProduction ? 'production' : 'development',
-    nodeEnv: process.env.NODE_ENV || 'not set',
   })
 })
 

@@ -539,6 +539,31 @@ export default function InterventionMap() {
 
         <TabBar engagementId={engagementId!} activeTab="intervention-map" />
 
+        {/* Explanation */}
+        <div className="rounded-lg border border-navy-100 bg-white p-5 mb-6">
+          <h3 className="font-display text-body-md text-navy-900 mb-2">How to read this map</h3>
+          <div className="font-body text-body-sm text-navy-600 space-y-2">
+            <p>
+              Each cell shows the maturity score (0-100) for a specific domain and intervention type combination.
+              The colour indicates readiness: <span className="text-red-600 font-medium">red/pink = significant gaps</span>,
+              <span className="text-amber-600 font-medium"> yellow = developing</span>,
+              <span className="text-blue-600 font-medium"> blue = advancing</span>,
+              <span className="text-green-700 font-medium"> green = leading</span>.
+            </p>
+            <p>
+              <strong>Columns</strong> represent intervention types — from foundational (Process, Digitize) to advanced (Analytics, AI).
+              <strong> Rows</strong> represent the assessed business domains. Look for patterns:
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-navy-500">
+              <li><strong>Low scores in Process/Digitize</strong> mean foundational gaps — fix these before investing in automation or AI</li>
+              <li><strong>High Process but low Integrate</strong> suggests siloed systems — processes work but data doesn't flow between them</li>
+              <li><strong>High across Process/Digitize/Integrate but low Automate</strong> indicates an automation-ready domain — quick wins available</li>
+              <li><strong>Consistently low scores across a row</strong> means that domain needs foundational work before any technology intervention</li>
+              <li><strong>Click any cell</strong> to see details about the questions that contributed to that score</li>
+            </ul>
+          </div>
+        </div>
+
         {domainsInMap.length === 0 ? (
           <div className="rounded-lg border border-navy-100 bg-white p-8 text-center">
             <p className="font-body text-body-sm text-navy-400 italic">

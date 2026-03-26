@@ -268,6 +268,35 @@ export function buildRoadmap(
     }
   }
 
+  // Ensure every phase has at least one action — add strategic 90-day items if missing
+  const has90 = items.some(i => PHASE_MAP[i.interventionType] === 90 || i.interventionType === 'ANALYTICS' || i.interventionType === 'AI')
+  if (!has90 && rootCauses.length > 0) {
+    // Add analytics actions based on the root causes found
+    const topRc = rootCauses[0]
+    const analytics90Actions = [
+      'link-dashboards-to-decisions',
+      'establish-insight-to-action-workflows',
+      'define-decision-rights-per-metric',
+    ]
+    for (const actionId of analytics90Actions) {
+      const template = ACTION_TEMPLATES[actionId]
+      if (!template) continue
+      counter++
+      items.push({
+        id: `ri-${counter}-${timestamp}`,
+        phase: 90,
+        title: template.title,
+        description: template.description,
+        rootCauseIds: [topRc.id],
+        questionIds: topRc.evidenceQuestionIds.slice(0, 3),
+        interventionType: template.type,
+        estimatedEffort: template.effort,
+        expectedOutcome: template.outcome,
+        prerequisiteIds: [],
+      })
+    }
+  }
+
   // Deduplicate by title
   const deduped = new Map<string, RoadmapItemResult>()
   for (const item of items) {

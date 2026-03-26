@@ -153,6 +153,29 @@ export default function BusinessCase() {
 
         <TabBar engagementId={engagementId!} activeTab="business-case" />
 
+        {/* Methodology explanation */}
+        <div className="rounded-lg border border-navy-100 bg-white p-5 mb-6">
+          <h3 className="font-display text-body-md text-navy-900 mb-2">How these values are calculated</h3>
+          <div className="font-body text-body-sm text-navy-600 space-y-2">
+            <p>
+              All values are derived from <strong>your engagement inputs</strong> — not hardcoded benchmarks.
+              The calculation chain is fully transparent:
+            </p>
+            <ol className="list-decimal list-inside space-y-1.5 text-navy-500">
+              <li><strong>Revenue midpoint</strong> — taken from the revenue range you selected during setup (e.g., $200M-1B uses $350M midpoint)</li>
+              <li><strong>Domain risk percentage</strong> — each domain carries an industry-standard risk weight (e.g., Operations: 20%, Customer & Revenue: 18%, Finance: 10%)</li>
+              <li><strong>Problem intensity</strong> — derived from your domain maturity scores. Lower maturity = higher intensity (score &lt;20 = 100% intensity, score 60-80 = 30%)</li>
+              <li><strong>Problem cost per domain</strong> = Revenue midpoint x Domain risk % x Problem intensity</li>
+              <li><strong>Tier values</strong> — the total problem cost is allocated across intervention tiers: Process (25%), Automation (35%), Analytics (15%), AI (25% x AI weight)</li>
+              <li><strong>Conservative (12-month)</strong> = Total value x 0.65 — assumes partial implementation and adoption lag</li>
+              <li><strong>Realistic (24-month)</strong> = Total value x 1.30 — accounts for compounding benefits and full rollout</li>
+            </ol>
+            <p className="text-navy-400 text-body-xs mt-3">
+              Click "Show calculation inputs" below for the exact numbers used in this engagement.
+            </p>
+          </div>
+        </div>
+
         {/* Problem cost header */}
         <div className="rounded-lg border border-navy-100 bg-white p-6 mb-6">
           <div className="flex items-baseline justify-between">

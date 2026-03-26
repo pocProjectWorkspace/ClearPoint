@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import AuthGuard from './components/AuthGuard'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -24,12 +25,19 @@ function Protected({ children }: { children: React.ReactNode }) {
   return <AuthGuard>{children}</AuthGuard>
 }
 
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  useEffect(() => { window.scrollTo(0, 0) }, [pathname])
+  return null
+}
+
 function AppContent() {
   const location = useLocation()
   const hideNav = location.pathname === '/login' || location.pathname.startsWith('/report/')
 
   return (
     <>
+      <ScrollToTop />
       {!hideNav && <TopNav />}
       <Routes>
         <Route path="/login" element={<Login />} />

@@ -56,6 +56,9 @@ export default function SetupWizard() {
   // Save to API: create on step 1, update thereafter
   const saveToApi = useCallback(
     async (data: Record<string, unknown>) => {
+      // Update local store so summary page has the data
+      setDraft(data as Partial<typeof draft>)
+
       if (!draft.id) {
         const res = await api.createEngagement(data)
         const id = res.data.id as string
@@ -66,7 +69,7 @@ export default function SetupWizard() {
         return draft.id
       }
     },
-    [draft.id, setDraftId]
+    [draft.id, setDraft, setDraftId]
   )
 
   const steps = STEP_LABELS.map((label, i) => ({
